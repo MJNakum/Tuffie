@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# A fake `terraform` for tests. It prints the same machine-readable output
+# shapes as Terraform 1.x, so Tuffie can be tested without a real provider.
+set -euo pipefail
+
+ts() { date -u +%Y-%m-%dT%H:%M:%S.000000Z; }
+STATE=terraform.tfstate
+sub="${1:-}"; shift || true
+
+case "$sub" in
+  version)
+    echo '{"terraform_version":"1.99.0-mock","platform":"linux_amd64","provider_selections":{},"terraform_outdated":false}'
+    ;;
+  init)
+    mkdir -p .terraform
+    echo "Initializing the backend..."
+    echo "Terraform has been successfully initialized!"
+    ;;
+  plan)
+    out=""; destroy=0
+    for a in "$@"; do
+      case "$a" in -out=*) out="${a#-out=}";; -destroy) destroy=1;; esac
+    done
+    echo "{\"@level\":\"info\",\"@message\":\"Terraform 1.99.0-mock\",\"@timestamp\":\"$(ts)\",\"type\":\"version\",\"terraform\":\"1.99.0-mock\",\"ui\":\"1.2\"}"
+    if [[ -f "$STATE" && $destroy -eq 0 ]]; then
+      echo "{\"@level\":\"info\",\"@message\":\"Plan: 0 to add, 0 to change, 0 to destroy.\",\"@timestamp\":\"$(ts)\",\"type\":\"change_summary\",\"changes\":{\"add\":0,\"change\":0,\"import\":0,\"remove\":0,\"operation\":\"plan\"}}"
+      [[ -n "$out" ]] && echo nochange > "$out"
+      exit 0
+    fi
+    if [[ $destroy -eq 1 ]]; then
+      echo "{\"@level\":\"info\",\"@message\":\"random_pet.name: Plan to delete\",\"@timestamp\":\"$(ts)\",\"type\":\"planned_change\",\"change\":{\"resource\":{\"addr\":\"random_pet.name\",\"resource_type\":\"random_pet\"},\"action\":\"delete\"}}"
+      echo "{\"@level\":\"info\",\"@message\":\"Plan: 0 to add, 0 to change, 1 to destroy.\",\"@timestamp\":\"$(ts)\",\"type\":\"change_summary\",\"changes\":{\"add\":0,\"change\":0,\"import\":0,\"remove\":1,\"operation\":\"plan\"}}"
+      [[ -n "$out" ]] && echo destroy > "$out"
+      exit 2
+    fi
+    sleep 0.3
+    echo "{\"@level\":\"info\",\"@message\":\"random_pet.name: Plan to create\",\"@timestamp\":\"$(ts)\",\"type\":\"planned_change\",\"change\":{\"resource\":{\"addr\":\"random_pet.name\",\"resource_type\":\"random_pet\"},\"action\":\"create\"}}"
+    echo "{\"@level\":\"info\",\"@message\":\"aws_s3_bucket.logs: Plan to create\",\"@timestamp\":\"$(ts)\",\"type\":\"planned_change\",\"change\":{\"resource\":{\"addr\":\"aws_s3_bucket.logs\",\"resource_type\":\"aws_s3_bucket\"},\"action\":\"create\"}}"
+    echo "{\"@level\":\"info\",\"@message\":\"Plan: 2 to add, 0 to change, 0 to destroy.\",\"@timestamp\":\"$(ts)\",\"type\":\"change_summary\",\"changes\":{\"add\":2,\"change\":0,\"import\":0,\"remove\":0,\"operation\":\"plan\"}}"
+    [[ -n "$out" ]] && echo create > "$out"
+    exit 2
+    ;;
+  show)
+    file=""; for a in "$@"; do [[ "$a" != -* ]] && file="$a"; done
+    if [[ -n "$file" ]]; then
+      kind=$(cat "$file")
+      if [[ "$kind" == destroy ]]; then
+        echo '{"format_version":"1.2","terraform_version":"1.99.0-mock","resource_changes":[{"address":"random_pet.name","mode":"managed","type":"random_pet","name":"name","provider_name":"registry.terraform.io/hashicorp/random","change":{"actions":["delete"],"before":{"id":"brave-otter","length":2},"after":null,"after_unknown":{},"before_sensitive":{},"after_sensitive":false}}]}'
+      else
+        echo '{"format_version":"1.2","terraform_version":"1.99.0-mock","resource_changes":[{"address":"random_pet.name","mode":"managed","type":"random_pet","name":"name","provider_name":"registry.terraform.io/hashicorp/random","change":{"actions":["create"],"before":null,"after":{"length":2,"separator":"-","prefix":null},"after_unknown":{"id":true},"before_sensitive":false,"after_sensitive":{}}},{"address":"aws_s3_bucket.logs","mode":"managed","type":"aws_s3_bucket","name":"logs","provider_name":"registry.terraform.io/hashicorp/aws","change":{"actions":["create"],"before":null,"after":{"bucket":"tuffie-logs","tags":{"env":"dev"},"secret_token":"hunter2-should-be-masked"},"after_unknown":{"arn":true,"id":true},"before_sensitive":false,"after_sensitive":{"secret_token":true}}}],"output_changes":{"pet":{"actions":["create"],"before":null,"after_unknown":true,"before_sensitive":false,"after_sensitive":false}}}'
+      fi
+    elif [[ -f "$STATE" ]]; then
+      echo '{"format_version":"1.0","terraform_version":"1.99.0-mock","values":{"outputs":{"pet":{"sensitive":false,"value":"brave-otter","type":"string"}},"root_module":{"resources":[{"address":"random_pet.name","mode":"managed","type":"random_pet","name":"name","provider_name":"registry.terraform.io/hashicorp/random","values":{"id":"brave-otter","length":2},"sensitive_values":{}},{"address":"aws_s3_bucket.logs","mode":"managed","type":"aws_s3_bucket","name":"logs","provider_name":"registry.terraform.io/hashicorp/aws","values":{"bucket":"tuffie-logs","secret_token":"hunter2"},"sensitive_values":{"secret_token":true},"depends_on":["random_pet.name"]}]}}}'
+    else
+      echo '{"format_version":"1.0"}'
+    fi
+    ;;
+  apply)
+    file=""; for a in "$@"; do [[ "$a" != -* ]] && file="$a"; done
+    kind=$(cat "$file" 2>/dev/null || echo create)
+    if [[ "$kind" == destroy ]]; then
+      rm -f "$STATE"
+      echo "{\"@level\":\"info\",\"@message\":\"Apply complete! Resources: 0 added, 0 changed, 1 destroyed.\",\"@timestamp\":\"$(ts)\",\"type\":\"change_summary\",\"changes\":{\"add\":0,\"change\":0,\"import\":0,\"remove\":1,\"operation\":\"apply\"}}"
+      exit 0
+    fi
+    echo "{\"@level\":\"info\",\"@message\":\"random_pet.name: Creating...\",\"@timestamp\":\"$(ts)\",\"type\":\"apply_start\",\"hook\":{\"resource\":{\"addr\":\"random_pet.name\"},\"action\":\"create\"}}"
+    sleep 0.2
+    echo "{\"@level\":\"info\",\"@message\":\"random_pet.name: Creation complete after 0s [id=brave-otter]\",\"@timestamp\":\"$(ts)\",\"type\":\"apply_complete\",\"hook\":{\"resource\":{\"addr\":\"random_pet.name\"},\"action\":\"create\",\"id_key\":\"id\",\"id_value\":\"brave-otter\",\"elapsed_seconds\":0}}"
+    echo "{\"@level\":\"info\",\"@message\":\"aws_s3_bucket.logs: Creation complete after 1s [id=tuffie-logs]\",\"@timestamp\":\"$(ts)\",\"type\":\"apply_complete\",\"hook\":{\"resource\":{\"addr\":\"aws_s3_bucket.logs\"},\"action\":\"create\",\"id_key\":\"id\",\"id_value\":\"tuffie-logs\",\"elapsed_seconds\":1}}"
+    echo '{"version":4,"serial":1,"lineage":"mock","resources":[]}' > "$STATE"
+    echo "{\"@level\":\"info\",\"@message\":\"Apply complete! Resources: 2 added, 0 changed, 0 destroyed.\",\"@timestamp\":\"$(ts)\",\"type\":\"change_summary\",\"changes\":{\"add\":2,\"change\":0,\"import\":0,\"remove\":0,\"operation\":\"apply\"}}"
+    ;;
+  state)
+    case "${1:-}" in
+      pull) [[ -f "$STATE" ]] && echo '{"version":4,"terraform_version":"1.99.0-mock","serial":3,"lineage":"mock","outputs":{"pet":{"value":"brave-otter","type":"string"}},"resources":[{"mode":"managed","type":"random_pet","name":"name","provider":"provider[\"registry.terraform.io/hashicorp/random\"]","instances":[{"attributes":{"id":"brave-otter","length":2},"sensitive_attributes":[]}]},{"mode":"managed","type":"aws_s3_bucket","name":"logs","provider":"provider[\"registry.terraform.io/hashicorp/aws\"]","instances":[{"attributes":{"bucket":"tuffie-logs","secret_token":"hunter2"},"sensitive_attributes":[[{"type":"get_attr","value":"secret_token"}]],"dependencies":["random_pet.name"]}]}]}' || true ;;
+      list) [[ -f "$STATE" ]] && printf 'random_pet.name\naws_s3_bucket.logs\n' ;;
+      *) echo "mock: state $*" ;;
+    esac
+    ;;
+  *)
+    echo "mock terraform: $sub $*"
+    ;;
+esac
