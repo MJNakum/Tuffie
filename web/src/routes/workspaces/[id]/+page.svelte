@@ -17,6 +17,7 @@
 	import { toast } from 'svelte-sonner';
 	import { errMsg } from '#lib/api';
 	import { intervalLabel } from '#lib/format';
+	import { autoTour } from '#lib/tour';
 
 	const ctx = useWorkspace();
 	const ws = $derived(ctx.ws!);
@@ -25,8 +26,14 @@
 	let stErr = $state('');
 
 	$effect(() => poll(async () => (runs = await api.runs(ctx.id, 15).catch(() => runs)), 3000));
+	// Reading state starts a `terraform show` process, so read it only when
+	// something that can change it happens: a run ends, or the tool changes.
+	const stateKey = $derived(
+		`${ctx.ws?.tool}|${ctx.ws?.tool_path}|${ctx.ws?.lock_run_id}|` +
+			(runs ?? []).filter((r) => r.finished_at).map((r) => r.id).slice(0, 1).join()
+	);
 	$effect(() => {
-		ctx.version;
+		stateKey;
 		api.state(ctx.id).then(
 			(s) => ((st = s), (stErr = '')),
 			(e) => (stErr = e.message)
@@ -39,6 +46,13 @@
 		const m = new Map<string, number>();
 		for (const r of st?.resources ?? []) if (r.mode === 'managed') m.set(r.type, (m.get(r.type) ?? 0) + 1);
 		return [...m].sort((a, b) => b[1] - a[1]);
+	});
+	let tourChecked = false;
+	$effect(() => {
+		if (runs !== null && !tourChecked) {
+			tourChecked = true;
+			autoTour('workspace', 900);
+		}
 	});
 	const managed = $derived((st?.resources ?? []).filter((r) => r.mode === 'managed').length);
 
@@ -66,7 +80,7 @@
 
 <div class="grid gap-5 px-8 py-6 xl:grid-cols-[minmax(0,1fr)_340px]">
 	<div class="flex min-w-0 flex-col gap-5">
-		<Card title="Latest run" pad={false}>
+		<Card title="Latest run" pad={false} tour="latest-run">
 			{#snippet actions()}<Button size="sm" variant="ghost" href="/workspaces/{ws.id}/runs">All runs<ArrowRight /></Button>{/snippet}
 			{#if runs === null}
 				<div class="grid place-items-center py-10"><Spinner /></div>
@@ -110,7 +124,7 @@
 			{/if}
 		</Card>
 
-		<Card title="Resources" pad={false}>
+		<Card title="Resources" pad={false} tour="resources-card">
 			{#snippet actions()}<Button size="sm" variant="ghost" href="/workspaces/{ws.id}/state">Open state<ArrowRight /></Button>{/snippet}
 			{#if stErr}
 				<p class="px-4 py-6 text-[13px] text-muted">{stErr}</p>
@@ -137,7 +151,7 @@
 	</div>
 
 	<div class="flex flex-col gap-5">
-		<Card title="Drift">
+		<Card title="Drift" tour="drift-card">
 			{#snippet actions()}<Button size="sm" variant="ghost" loading={checking} onclick={checkDrift}><Radar />Check now</Button>{/snippet}
 			<div class="flex items-start gap-3">
 				<span

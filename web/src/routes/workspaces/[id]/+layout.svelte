@@ -116,7 +116,7 @@
 		<span>{ctx.ws?.name ?? '…'}</span>
 	</nav>
 	<div class="flex items-start justify-between gap-6">
-		<div class="min-w-0">
+		<div class="min-w-0" data-tour="ws-header">
 			<div class="flex items-center gap-2.5">
 				<h1 class="truncate text-[20px] font-semibold tracking-[-0.02em]">{ctx.ws?.name ?? ''}</h1>
 				{#if ctx.ws?.lock_run_id}
@@ -139,17 +139,17 @@
 			{/if}
 		</div>
 		<div class="flex shrink-0 items-center gap-2">
-			<Button onclick={toggleTerm} variant={termOpen ? 'secondary' : 'ghost'}>
+			<Button onclick={toggleTerm} variant={termOpen ? 'secondary' : 'ghost'} data-tour="terminal-btn">
 				<SquareTerminal />Terminal <Kbd>Ctrl `</Kbd>
 			</Button>
 			<Menu items={runMenu}>
 				{#snippet trigger(props)}
-					<Button variant="primary" loading={starting} {...props}><Play />Start run<ChevronDown class="-mr-1 opacity-70" /></Button>
+					<Button variant="primary" loading={starting} {...props} data-tour="start-run"><Play />Start run<ChevronDown class="-mr-1 opacity-70" /></Button>
 				{/snippet}
 			</Menu>
 		</div>
 	</div>
-	<nav class="-mb-px mt-4 flex gap-5">
+	<nav class="-mb-px mt-4 flex w-fit gap-5" data-tour="ws-tabs">
 		{#each tabs as t (t.href)}
 			<a
 				href={t.href}

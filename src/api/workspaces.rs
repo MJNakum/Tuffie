@@ -251,3 +251,42 @@ pub async fn check_drift(State(state): State<AppState>, Path(id): Path<String>) 
     let run = crate::runner::create_run(&state, &ws, crate::models::RunKind::Drift, "Drift check".into(), "ui").await?;
     Ok((StatusCode::CREATED, Json(run)))
 }
+
+const DEMO_MAIN_TF: &str = include_str!("../../examples/basic/main.tf");
+
+/// Create a sample workspace from the bundled example. It uses only the
+/// `random` provider, so it needs no cloud account. Used by the guided tour.
+pub async fn create_demo(State(state): State<AppState>) -> ApiResult<(StatusCode, Json<Workspace>)> {
+    let mut name = "sample-project".to_string();
+    for i in 2..100 {
+        let taken: Option<(String,)> = sqlx::query_as("SELECT id FROM workspaces WHERE name = ?").bind(&name).fetch_optional(&state.db).await?;
+        if taken.is_none() {
+            break;
+        }
+        name = format!("sample-project-{i}");
+    }
+    let dir = state.config.data_dir.join("samples").join(&name);
+    tokio::fs::create_dir_all(&dir).await?;
+    let main = dir.join("main.tf");
+    if !main.exists() {
+        tokio::fs::write(&main, DEMO_MAIN_TF).await?;
+    }
+    // Prefer whichever tool is installed.
+    let tool = if exec::which("terraform").is_some() || exec::which("tofu").is_none() { "terraform" } else { "tofu" };
+    let id = new_id("ws");
+    let t = now();
+    sqlx::query(
+        "INSERT INTO workspaces (id, name, description, source_kind, local_path, working_dir, tool, auto_apply, created_at, updated_at)
+         VALUES (?, ?, ?, 'local', ?, '', ?, 0, ?, ?)",
+    )
+    .bind(&id)
+    .bind(&name)
+    .bind("Sample project from the guided tour. It creates random names only, no cloud resources.")
+    .bind(dir.display().to_string())
+    .bind(tool)
+    .bind(t)
+    .bind(t)
+    .execute(&state.db)
+    .await?;
+    Ok((StatusCode::CREATED, Json(get_workspace(&state, &id).await?)))
+}

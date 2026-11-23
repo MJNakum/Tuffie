@@ -15,6 +15,8 @@ export default defineConfig({
 		})
 	],
 	server: {
+		// The user guide lives in ../docs/guide and is bundled into the app.
+		fs: { allow: ['..'] },
 		proxy: {
 			'/api': { target: backend, ws: true, changeOrigin: true }
 		}

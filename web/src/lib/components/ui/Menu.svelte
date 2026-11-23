@@ -7,11 +7,22 @@
 <script lang="ts">
 	import { DropdownMenu } from 'bits-ui';
 	import type { Snippet } from 'svelte';
-	let { items, trigger, align = 'end' }: { items: MenuItem[]; trigger: Snippet<[Record<string, unknown>]>; align?: 'start' | 'end' } =
-		$props();
+	let {
+		items,
+		trigger,
+		align = 'end',
+		side = 'bottom',
+		open = $bindable(false)
+	}: {
+		items: MenuItem[];
+		trigger: Snippet<[Record<string, unknown>]>;
+		align?: 'start' | 'end';
+		side?: 'top' | 'bottom' | 'right';
+		open?: boolean;
+	} = $props();
 </script>
 
-<DropdownMenu.Root>
+<DropdownMenu.Root bind:open>
 	<DropdownMenu.Trigger>
 		{#snippet child({ props })}
 			{@render trigger(props)}
@@ -20,6 +31,7 @@
 	<DropdownMenu.Portal>
 		<DropdownMenu.Content
 			{align}
+			{side}
 			sideOffset={6}
 			class="z-50 min-w-56 rounded-lg border border-border-strong bg-surface-2 p-1 shadow-pop focus:outline-none"
 		>

@@ -64,6 +64,7 @@ export const api = {
 	updateWorkspace: (id: string, b: Partial<Workspace>) => req<Workspace>('PATCH', `/workspaces/${id}`, b),
 	deleteWorkspace: (id: string) => req<void>('DELETE', `/workspaces/${id}`),
 	syncWorkspace: (id: string) => req<{ sha: string }>('POST', `/workspaces/${id}/sync`),
+	createSampleWorkspace: () => req<Workspace>('POST', '/workspaces/sample'),
 	checkDrift: (id: string) => req<Run>('POST', `/workspaces/${id}/drift`),
 	workspaceVariableSets: (id: string) => req<VariableSet[]>('GET', `/workspaces/${id}/variable-sets`),
 

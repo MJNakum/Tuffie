@@ -46,7 +46,7 @@
 	const symTone = { add: 'text-success', remove: 'text-danger', change: 'text-warning', same: 'text-subtle' };
 </script>
 
-<div class="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2.5">
+<div class="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2.5" data-tour="plan-filter">
 	<div class="flex items-center gap-1 rounded-md bg-surface-2 p-0.5">
 		{#each ['all', 'create', 'update', 'replace', 'delete', 'read'] as k (k)}
 			{#if k === 'all' || counts[k]}

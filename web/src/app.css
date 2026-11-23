@@ -172,3 +172,244 @@
 .pulse-dot {
 	animation: pulse-dot 1.4s ease-in-out infinite;
 }
+
+/* ---------- In-app documentation ---------- */
+.doc {
+	font-size: 14px;
+	line-height: 1.7;
+	color: color-mix(in srgb, var(--fg), var(--fg-muted) 18%);
+}
+.doc h1 {
+	font-size: 28px;
+	font-weight: 650;
+	letter-spacing: -0.025em;
+	color: var(--fg);
+	margin: 0 0 1rem;
+	line-height: 1.25;
+}
+.doc h2 {
+	font-size: 19px;
+	font-weight: 620;
+	letter-spacing: -0.015em;
+	color: var(--fg);
+	margin: 2.4rem 0 0.8rem;
+	padding-top: 0.4rem;
+	scroll-margin-top: 1rem;
+}
+.doc h3 {
+	font-size: 15.5px;
+	font-weight: 600;
+	color: var(--fg);
+	margin: 1.8rem 0 0.6rem;
+	scroll-margin-top: 1rem;
+}
+.doc h1 .anchor,
+.doc h2 .anchor,
+.doc h3 .anchor {
+	float: left;
+	margin-left: -1.1em;
+	width: 1em;
+	color: var(--fg-subtle);
+	opacity: 0;
+	text-decoration: none;
+	font-weight: 400;
+}
+.doc h2:hover .anchor,
+.doc h3:hover .anchor {
+	opacity: 1;
+}
+.doc p,
+.doc ul,
+.doc ol,
+.doc table,
+.doc pre,
+.doc blockquote {
+	margin: 0 0 1rem;
+}
+.doc ul {
+	list-style: disc;
+	padding-left: 1.4rem;
+}
+.doc ol {
+	list-style: decimal;
+	padding-left: 1.5rem;
+}
+.doc li {
+	margin: 0.25rem 0;
+	padding-left: 0.15rem;
+}
+.doc li::marker {
+	color: var(--fg-subtle);
+}
+.doc a {
+	color: var(--primary-text);
+	text-decoration: underline;
+	text-decoration-color: color-mix(in srgb, var(--primary-text), transparent 65%);
+	text-underline-offset: 2px;
+}
+.doc a:hover {
+	text-decoration-color: currentColor;
+}
+.doc strong {
+	color: var(--fg);
+	font-weight: 600;
+}
+.doc :not(pre) > code {
+	background: var(--surface-3);
+	border: 1px solid var(--border);
+	border-radius: 4px;
+	padding: 0.05em 0.35em;
+	font-size: 0.86em;
+	color: var(--fg);
+}
+.doc pre {
+	background: var(--term-bg);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	padding: 0.9rem 1rem;
+	overflow-x: auto;
+	font-size: 12.5px;
+	line-height: 1.6;
+	color: #d7dce6;
+}
+.doc table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 13px;
+	display: block;
+	overflow-x: auto;
+}
+.doc th {
+	text-align: left;
+	font-weight: 600;
+	color: var(--fg);
+	background: var(--surface-2);
+	padding: 0.5rem 0.75rem;
+	border: 1px solid var(--border);
+}
+.doc td {
+	padding: 0.45rem 0.75rem;
+	border: 1px solid var(--border);
+	vertical-align: top;
+}
+.doc .callout {
+	border-left: 3px solid var(--primary);
+	background: var(--primary-soft);
+	border-radius: 0 8px 8px 0;
+	padding: 0.7rem 1rem;
+}
+.doc .callout p:last-child {
+	margin-bottom: 0;
+}
+.doc .callout-caution {
+	border-color: var(--warning);
+	background: var(--warning-soft);
+}
+.doc hr {
+	border-color: var(--border);
+	margin: 2rem 0;
+}
+
+/* ---------- Guided tour (driver.js) ---------- */
+.driver-popover.tuffie-tour {
+	background: var(--surface-2);
+	color: var(--fg);
+	border: 1px solid var(--border-strong);
+	border-radius: 12px;
+	box-shadow: 0 16px 50px rgb(0 0 0 / 0.5);
+	padding: 18px 18px 14px;
+	max-width: 360px;
+	font-family: var(--font-sans);
+}
+.driver-popover.tuffie-tour .driver-popover-title {
+	font-size: 15px;
+	font-weight: 600;
+	letter-spacing: -0.01em;
+	color: var(--fg);
+}
+.driver-popover.tuffie-tour .driver-popover-description {
+	font-size: 13px;
+	line-height: 1.55;
+	color: var(--fg-muted);
+	margin-top: 6px;
+}
+.driver-popover.tuffie-tour .driver-popover-description b,
+.driver-popover.tuffie-tour .driver-popover-description code {
+	color: var(--fg);
+}
+.driver-popover.tuffie-tour code {
+	font-family: var(--font-mono);
+	font-size: 0.88em;
+	background: var(--surface-3);
+	border-radius: 4px;
+	padding: 0 4px;
+}
+.driver-popover.tuffie-tour kbd {
+	font-family: var(--font-sans);
+	font-size: 11px;
+	border: 1px solid var(--border-strong);
+	background: var(--surface-3);
+	border-radius: 4px;
+	padding: 0 5px;
+	color: var(--fg);
+}
+.driver-popover.tuffie-tour .driver-popover-progress-text {
+	font-size: 12px;
+	color: var(--fg-subtle);
+}
+.driver-popover.tuffie-tour .driver-popover-footer {
+	margin-top: 14px;
+	gap: 6px;
+}
+.driver-popover.tuffie-tour .driver-popover-footer button,
+.driver-popover.tuffie-tour .tuffie-tour-cta {
+	font-family: var(--font-sans);
+	text-shadow: none;
+	font-size: 12.5px;
+	font-weight: 500;
+	border-radius: 6px;
+	padding: 5px 11px;
+	border: 1px solid var(--border-strong);
+	background: var(--surface);
+	color: var(--fg);
+}
+.driver-popover.tuffie-tour .driver-popover-footer button:hover {
+	background: var(--hover);
+}
+.driver-popover.tuffie-tour .driver-popover-next-btn,
+.driver-popover.tuffie-tour .tuffie-tour-cta {
+	background: var(--primary) !important;
+	border-color: var(--primary) !important;
+	color: #fff !important;
+}
+.driver-popover.tuffie-tour .driver-popover-next-btn:hover {
+	background: var(--primary-hover) !important;
+}
+.driver-popover.tuffie-tour .tuffie-tour-cta {
+	margin-right: auto;
+	cursor: pointer;
+}
+.driver-popover.tuffie-tour .driver-popover-close-btn {
+	color: var(--fg-subtle);
+}
+.driver-popover.tuffie-tour .driver-popover-close-btn:hover {
+	color: var(--fg);
+}
+.driver-popover.tuffie-tour .driver-popover-arrow-side-left.driver-popover-arrow {
+	border-left-color: var(--surface-2);
+}
+.driver-popover.tuffie-tour .driver-popover-arrow-side-right.driver-popover-arrow {
+	border-right-color: var(--surface-2);
+}
+.driver-popover.tuffie-tour .driver-popover-arrow-side-top.driver-popover-arrow {
+	border-top-color: var(--surface-2);
+}
+.driver-popover.tuffie-tour .driver-popover-arrow-side-bottom.driver-popover-arrow {
+	border-bottom-color: var(--surface-2);
+}
+/* When the call-to-action is shown, "Done" becomes a secondary button. */
+.driver-popover.tuffie-tour .driver-popover-footer:has(.tuffie-tour-cta) .driver-popover-next-btn {
+	background: var(--surface) !important;
+	border-color: var(--border-strong) !important;
+	color: var(--fg) !important;
+}

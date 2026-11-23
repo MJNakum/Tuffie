@@ -19,6 +19,7 @@ pub fn router(state: AppState) -> Router {
     let api = Router::new()
         .route("/system/info", get(system::info))
         .route("/workspaces", get(workspaces::list).post(workspaces::create))
+        .route("/workspaces/sample", post(workspaces::create_demo))
         .route("/workspaces/{id}", get(workspaces::get).patch(workspaces::update).delete(workspaces::delete))
         .route("/workspaces/{id}/sync", post(workspaces::sync))
         .route("/workspaces/{id}/drift", post(workspaces::check_drift))

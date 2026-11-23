@@ -92,6 +92,15 @@
 	});
 	onDestroy(() => sock?.close());
 
+	// First time a person sees a finished plan: show the run review tour.
+	let tourChecked = false;
+	$effect(() => {
+		if (!tourChecked && plan && run && run.kind !== 'cli') {
+			tourChecked = true;
+			import('#lib/tour').then((t) => t.autoTour('run', 900));
+		}
+	});
+
 	const firstApply = $derived(events.find((e) => e.stage === 'apply')?.seq ?? Infinity);
 	const planEvents = $derived(
 		events.filter((e) => e.seq < firstApply && e.stage !== 'policy' && !(e.type === 'status' && e.data?.status === 'applying'))
@@ -177,7 +186,7 @@
 		<div class="grid place-items-center py-16"><Spinner class="size-5" /></div>
 	{:else}
 		<!-- Summary -->
-		<div class="mb-6 flex flex-wrap items-start justify-between gap-4">
+		<div class="mb-6 flex flex-wrap items-start justify-between gap-4" data-tour="run-summary">
 			<div class="min-w-0">
 				<div class="flex items-center gap-3">
 					<RunStatus status={run.status} kind={run.kind} hasChanges={run.has_changes} />
@@ -212,7 +221,7 @@
 			<!-- Timeline -->
 			<ol class="relative ml-[10px] flex flex-col gap-4 border-l border-border pl-0">
 				<!-- Plan -->
-				<li class="relative -ml-px pl-7">
+				<li class="relative -ml-px pl-7" data-tour="plan-step">
 					{@render dot(planState)}
 					<div class="overflow-hidden rounded-lg border border-border bg-surface">
 						<button class="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-hover" onclick={() => (showPlanLog = !showPlanLog)}>
@@ -257,7 +266,7 @@
 
 				<!-- Policy check -->
 				{#if run.policy_status}
-					<li class="relative -ml-px pl-7">
+					<li class="relative -ml-px pl-7" data-tour="policy-step">
 						{@render dot(run.policy_status === 'errored' ? 'failed' : run.policy_status)}
 						<div class="overflow-hidden rounded-lg border border-border bg-surface">
 							<div class="flex items-center gap-3 px-4 py-3">
@@ -275,7 +284,7 @@
 
 				<!-- Apply / confirmation -->
 				{#if applyState !== 'skipped'}
-					<li class="relative -ml-px pl-7">
+					<li class="relative -ml-px pl-7" data-tour="apply-step">
 						{@render dot(applyState)}
 						{#if applyState === 'blocked'}
 							<div class="rounded-lg border border-danger/40 bg-danger-soft px-4 py-3">
@@ -321,7 +330,7 @@
 			</ol>
 
 			{#if origins && origins.length}
-				<div class="mt-5 overflow-hidden rounded-lg border border-border bg-surface">
+				<div class="mt-5 overflow-hidden rounded-lg border border-border bg-surface" data-tour="run-variables">
 					<button class="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-hover" onclick={() => (showVars = !showVars)}>
 						<ChevronRight class="size-3.5 text-subtle transition-transform {showVars ? 'rotate-90' : ''}" />
 						<Variable class="size-4 text-muted" />

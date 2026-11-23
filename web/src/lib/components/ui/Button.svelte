@@ -40,7 +40,7 @@
 </script>
 
 {#if href}
-	<a {href} class={c}>{@render children?.()}</a>
+	<a {href} class={c} {...rest as Record<string, unknown>}>{@render children?.()}</a>
 {:else}
 	<button class={c} disabled={loading || rest.disabled} {...rest}>
 		{#if loading}

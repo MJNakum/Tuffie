@@ -295,6 +295,21 @@ warn contains {"msg": "deletes a resource", "resource": rc.address} if {
         assert_eq!(f[0].package, "main");
     }
 
+    /// Every Rego example in the user guide must compile and evaluate.
+    #[test]
+    fn documentation_examples_compile() {
+        let doc = include_str!("../docs/guide/policies.md");
+        let blocks: Vec<&str> = doc.split("```rego").skip(1).map(|b| b.split("```").next().unwrap()).collect();
+        assert!(blocks.len() >= 3, "expected the policy examples in the guide");
+        for (i, b) in blocks.iter().enumerate() {
+            let src = vec![(format!("doc{i}.rego"), b.to_string())];
+            evaluate(&src, PLAN).unwrap_or_else(|e| panic!("example {i} fails: {e}"));
+        }
+        // The first example (owner tag) must catch the bucket in the test plan.
+        let f = evaluate(&[("a.rego".into(), blocks[0].to_string())], PLAN).unwrap();
+        assert_eq!(f.len(), 1);
+    }
+
     #[test]
     fn passing_and_syntax_error() {
         let ok = vec![("ok.rego".to_string(), "package p\nimport rego.v1\ndeny contains m if { m := \"x\"; false }".to_string())];

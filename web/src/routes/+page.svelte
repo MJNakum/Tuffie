@@ -16,6 +16,11 @@
 	import GitBranch from '@lucide/svelte/icons/git-branch';
 	import Boxes from '@lucide/svelte/icons/boxes';
 	import Lock from '@lucide/svelte/icons/lock';
+	import Sparkles from '@lucide/svelte/icons/sparkles';
+	import Compass from '@lucide/svelte/icons/compass';
+	import { goto } from '$app/navigation';
+	import { toast } from 'svelte-sonner';
+	import { autoTour, startTour } from '#lib/tour';
 	import Radar from '@lucide/svelte/icons/radar';
 
 	let list = $state<WorkspaceSummary[] | null>(null);
@@ -36,12 +41,34 @@
 	const shown = $derived(
 		(list ?? []).filter((w) => !q || w.name.toLowerCase().includes(q.toLowerCase()) || w.description.toLowerCase().includes(q.toLowerCase()))
 	);
+	// First visit: start the welcome tour once the list has loaded.
+	let tourChecked = false;
+	$effect(() => {
+		if (list !== null && !tourChecked) {
+			tourChecked = true;
+			autoTour('welcome');
+		}
+	});
+
+	let creatingSample = $state(false);
+	async function createSample() {
+		creatingSample = true;
+		try {
+			const ws = await api.createSampleWorkspace();
+			goto(`/workspaces/${ws.id}`);
+		} catch (e) {
+			toast.error(errMsg(e));
+			creatingSample = false;
+		}
+	}
+
 	const needsAttention = $derived((list ?? []).filter((w) => w.latest_run?.status === 'planned').length);
 </script>
 
 <PageHeader title="Workspaces" subtitle="Each workspace is one Terraform or OpenTofu configuration with its own runs, state and variables.">
 	{#snippet actions()}
-		<Button variant="primary" href="/workspaces/new"><Plus />New workspace</Button>
+		<Button variant="ghost" onclick={() => startTour('welcome', true)}><Compass />Tour</Button>
+		<Button variant="primary" href="/workspaces/new" data-tour="new-workspace"><Plus />New workspace</Button>
 	{/snippet}
 </PageHeader>
 
@@ -53,14 +80,18 @@
 	{#if list === null}
 		<div class="grid place-items-center py-20"><Spinner class="size-5" /></div>
 	{:else if list.length === 0}
-		<div class="rounded-lg border border-dashed border-border-strong bg-surface">
+		<div class="rounded-lg border border-dashed border-border-strong bg-surface" data-tour="workspace-table">
 			<Empty
 				icon={Boxes}
 				title="Create your first workspace"
 				text="Point Tuffie at a folder with .tf files, or at a Git repository. You can then plan, review and apply from the UI or the terminal."
 			>
+				<span data-tour="sample-project" class="inline-flex">
+					<Button loading={creatingSample} onclick={createSample}><Sparkles />Create sample project</Button>
+				</span>
 				<Button variant="primary" href="/workspaces/new"><Plus />New workspace</Button>
 			</Empty>
+			<p class="-mt-8 pb-8 text-center text-[12px] text-subtle">The sample project uses only the <code>random</code> provider. It needs no cloud account.</p>
 		</div>
 	{:else}
 		<div class="mb-4 flex items-center gap-3">
@@ -76,7 +107,7 @@
 			{/if}
 		</div>
 
-		<div class="overflow-hidden rounded-lg border border-border bg-surface">
+		<div class="overflow-hidden rounded-lg border border-border bg-surface" data-tour="workspace-table">
 			<table class="w-full text-left text-[13px]">
 				<thead class="border-b border-border bg-surface-2 text-[11.5px] font-medium uppercase tracking-wide text-subtle">
 					<tr>

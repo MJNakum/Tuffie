@@ -220,6 +220,7 @@ All paths start with `/api`.
 | GET | `/workspaces/{id}/state` | Current state (`show -json`), masked. |
 | GET | `/workspaces/{id}/state-versions` | Saved snapshots. |
 | WS | `/workspaces/{id}/terminal` | Terminal. |
+| POST | `/workspaces/sample` | Create the sample project (used by the guided tour). |
 | POST | `/workspaces/{id}/drift` | Start a drift check now. |
 | GET | `/workspaces/{id}/variable-sets` | Sets that apply, in precedence order. |
 | GET, POST | `/variable-sets` | List, create (`global`, `workspace_ids`). |
@@ -232,6 +233,12 @@ All paths start with `/api`.
 | POST | `/policy-sets/{id}/test` | Evaluate against a run's saved plan. Body: `{"run_id": "…"}`. |
 | GET | `/runs/{id}/policy` | Policy results of a run. |
 | GET | `/runs/{id}/variables` | Variable origins of a run. |
+
+## Documentation and tours
+
+- The user guide is Markdown in `docs/guide/`. The web build bundles it (`import.meta.glob`), and `/docs` renders it with `marked` and `DOMPurify`. Links between guide pages become app routes; other links go to GitHub. So GitHub and the app always show the same text.
+- A Rust test compiles every Rego example in `docs/guide/policies.md`, so the examples cannot go stale.
+- Guided tours use `driver.js` (`web/src/lib/tour.ts`). A step points at an element with a `data-tour="…"` attribute. Steps whose element is missing are skipped. A finished or closed tour is stored in `localStorage` (`tuffie-tour:<name>`), so it starts only once.
 
 ## Design system
 

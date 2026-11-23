@@ -29,6 +29,8 @@ Tuffie is a companion to the CLI, not a replacement for it. It gives you the thi
 - **File editor** — edit `.tf` files with HCL syntax highlighting. Press `Ctrl+S` to save.
 - **Integrated terminal** — runs `terraform`, `tofu` and `tf` (an alias) in the workspace folder, with your variables set. Every command shows up in the run history.
 - **Terraform and OpenTofu** — choose the tool for each workspace.
+- **Guided tours** — a welcome tour on first start, then short tours for a workspace and for run review. Replay them from **Help** (press `?`).
+- **Built-in documentation** — the full [user guide](docs/guide/README.md), searchable inside the app at `/docs`.
 - **Dark and light themes.**
 
 ## Quick start
@@ -55,6 +57,8 @@ Requirements: Linux or macOS, and `terraform` or `tofu` on your `PATH`.
 
 5. Press `` Ctrl+` `` to open the terminal. Type `tf state list`.
 
+New to Tuffie? The guided tour starts on first launch. Read the [user guide](docs/guide/README.md) for every feature.
+
 ### Options
 
 | Flag | Environment variable | Default | What it does |
@@ -80,7 +84,7 @@ Security is a design goal, not an add-on.
 - **The file editor cannot leave the workspace folder** (it checks `..` and symlinks) and does not open `.tfstate` files.
 - **Git:** the `ext::` transport and repository hooks are disabled.
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full security model.
+See the [security guide](docs/guide/security.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full security model.
 
 ## Development
 
@@ -129,6 +133,8 @@ Ticked items are done. The order inside a phase is not fixed.
 - [ ] Soft-mandatory policies that an admin can override
 - [ ] Notify when drift is found (see Phase 2 notifications)
 - [ ] Install and switch Terraform / OpenTofu versions from the UI
+- [x] Guided tours (welcome, workspace, run review) and a sample project
+- [x] User guide, also built into the app with search
 - [ ] Command palette (`Ctrl+K`) and global search
 - [ ] Download plan JSON and run logs
 - [ ] Release binaries for Linux and macOS (x86_64 and arm64)
