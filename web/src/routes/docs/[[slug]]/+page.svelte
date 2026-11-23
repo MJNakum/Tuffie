@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { indicator } from '#lib/motion';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { tick } from 'svelte';
@@ -48,32 +49,36 @@
 		</div>
 		<nav class="min-h-0 flex-1 overflow-auto px-2 py-3">
 			{#if q.trim().length >= 2}
-				<div class="px-2 pb-2 text-[11px] font-medium uppercase tracking-wide text-subtle">{results.length} result{results.length === 1 ? '' : 's'}</div>
+				<div class="px-2 pb-2 text-2xs font-medium uppercase tracking-wide text-subtle">{results.length} result{results.length === 1 ? '' : 's'}</div>
 				{#each results as r (r.page.slug)}
 					<a href={href(r.page.slug)} onclick={() => (q = '')} class="mb-1 block rounded-md px-2 py-2 hover:bg-hover">
-						<div class="text-[13px] font-medium">{r.page.title}</div>
-						<div class="mt-0.5 line-clamp-2 text-[12px] text-muted">{r.snippet}</div>
+						<div class="text-base font-medium">{r.page.title}</div>
+						<div class="mt-0.5 line-clamp-2 text-xs text-muted">{r.snippet}</div>
 					</a>
 				{:else}
-					<p class="px-2 text-[12.5px] text-subtle">Nothing found for “{q}”.</p>
+					<p class="px-2 text-sm text-subtle">Nothing found for “{q}”.</p>
 				{/each}
 			{:else}
+				<div class="relative" use:indicator>
+				<span data-indicator class="pointer-events-none absolute left-0 top-0 rounded-md bg-primary-soft opacity-0"></span>
 				{#each sections as s (s.section)}
 					<div class="mb-4">
-						<div class="px-2 pb-1 text-[11px] font-medium uppercase tracking-wide text-subtle">{s.section}</div>
+						<div class="px-2 pb-1 text-2xs font-medium uppercase tracking-wide text-subtle">{s.section}</div>
 						{#each s.pages as p (p.slug)}
 							<a
 								href={href(p.slug)}
-								class="block rounded-md px-2 py-1.5 text-[13px] {p.slug === slug ? 'bg-primary-soft font-medium text-primary-text' : 'text-muted hover:bg-hover hover:text-fg'}"
+								data-active={p.slug === slug}
+								class="relative z-10 block rounded-md px-2 py-1.5 text-base {p.slug === slug ? 'font-medium text-primary-text' : 'text-muted hover:bg-hover hover:text-fg'}"
 								>{p.title}</a
 							>
 						{/each}
 					</div>
 				{/each}
+				</div>
 			{/if}
 		</nav>
 		<div class="border-t border-border p-3">
-			<button class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[13px] text-muted hover:bg-hover hover:text-fg" onclick={() => (goto('/'), setTimeout(() => startTour('welcome', true), 400))}>
+			<button class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-base text-muted hover:bg-hover hover:text-fg" onclick={() => (goto('/'), setTimeout(() => startTour('welcome', true), 400))}>
 				<Compass class="size-4" />Take the guided tour
 			</button>
 		</div>
@@ -83,35 +88,35 @@
 		{#if !doc || !rendered}
 			<div class="grid place-items-center py-24 text-center">
 				<BookOpen class="mb-3 size-6 text-subtle" />
-				<p class="text-[14px] font-medium">Page not found</p>
-				<a href="/docs" class="mt-2 text-[13px] text-primary-text hover:underline">Go to the overview</a>
+				<p class="text-md font-medium">Page not found</p>
+				<a href="/docs" class="mt-2 text-base text-primary-text hover:underline">Go to the overview</a>
 			</div>
 		{:else}
 			<div class="mx-auto flex max-w-[1100px] gap-10 px-10 py-10">
 				<article class="doc min-w-0 flex-1">
-					<div class="mb-2 text-[12px] font-medium text-primary-text">{doc.section}</div>
+					<div class="mb-2 text-xs font-medium text-primary-text">{doc.section}</div>
 					{@html rendered.html}
 					<nav class="mt-14 grid grid-cols-2 gap-3 border-t border-border pt-6">
 						{#if prev}
 							<a href={href(prev.slug)} class="group rounded-lg border border-border p-3 hover:border-primary">
-								<div class="flex items-center gap-1 text-[11.5px] text-subtle"><ChevronLeft class="size-3" />Previous</div>
-								<div class="mt-0.5 text-[13.5px] font-medium group-hover:text-primary-text">{prev.title}</div>
+								<div class="flex items-center gap-1 text-2xs text-subtle"><ChevronLeft class="size-3" />Previous</div>
+								<div class="mt-0.5 text-md font-medium group-hover:text-primary-text">{prev.title}</div>
 							</a>
 						{:else}<span></span>{/if}
 						{#if next}
 							<a href={href(next.slug)} class="group rounded-lg border border-border p-3 text-right hover:border-primary">
-								<div class="flex items-center justify-end gap-1 text-[11.5px] text-subtle">Next<ChevronRight class="size-3" /></div>
-								<div class="mt-0.5 text-[13.5px] font-medium group-hover:text-primary-text">{next.title}</div>
+								<div class="flex items-center justify-end gap-1 text-2xs text-subtle">Next<ChevronRight class="size-3" /></div>
+								<div class="mt-0.5 text-md font-medium group-hover:text-primary-text">{next.title}</div>
 							</a>
 						{/if}
 					</nav>
 				</article>
 				{#if rendered.toc.length > 2}
 					<aside class="sticky top-10 hidden h-fit w-52 shrink-0 xl:block">
-						<div class="mb-2 text-[11px] font-medium uppercase tracking-wide text-subtle">On this page</div>
+						<div class="mb-2 text-2xs font-medium uppercase tracking-wide text-subtle">On this page</div>
 						<ul class="flex flex-col gap-1 border-l border-border">
 							{#each rendered.toc as h (h.id)}
-								<li><a href="#{h.id}" class="-ml-px block border-l border-transparent py-0.5 text-[12.5px] text-muted hover:border-primary hover:text-fg {h.depth === 3 ? 'pl-6' : 'pl-3'}">{h.text}</a></li>
+								<li><a href="#{h.id}" class="-ml-px block border-l border-transparent py-0.5 text-sm text-muted hover:border-primary hover:text-fg {h.depth === 3 ? 'pl-6' : 'pl-3'}">{h.text}</a></li>
 							{/each}
 						</ul>
 					</aside>

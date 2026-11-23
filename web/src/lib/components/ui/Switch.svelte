@@ -7,9 +7,9 @@
 	bind:checked
 	{id}
 	{disabled}
-	class="peer inline-flex h-[18px] w-8 shrink-0 cursor-pointer items-center rounded-full border border-border-strong bg-surface-3 px-[2px] transition-colors data-[state=checked]:border-primary data-[state=checked]:bg-primary disabled:opacity-50"
+	class="peer inline-flex h-[18px] w-8 shrink-0 cursor-pointer items-center rounded-full border border-border-strong bg-surface-3 px-[2px] transition-colors duration-(--dur-base) data-[state=checked]:border-primary data-[state=checked]:bg-primary disabled:opacity-50"
 >
 	<Switch.Thumb
-		class="pointer-events-none block size-3 rounded-full bg-fg shadow transition-transform data-[state=checked]:translate-x-[14px] data-[state=checked]:bg-white"
+		class="pointer-events-none block size-3 rounded-full bg-fg shadow transition-[translate,background-color] duration-(--dur-base) ease-move data-[state=checked]:translate-x-[14px] data-[state=checked]:bg-white"
 	/>
 </Switch.Root>

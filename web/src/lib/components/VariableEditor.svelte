@@ -15,6 +15,7 @@
 	import Pencil from '@lucide/svelte/icons/pencil';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import Lock from '@lucide/svelte/icons/lock';
+	import { flip, rise, vanish } from '#lib/motion';
 
 	let {
 		variables,
@@ -84,22 +85,22 @@
 	<section class="overflow-hidden rounded-lg border border-border bg-surface">
 		<header class="flex items-center justify-between gap-4 border-b border-border px-4 py-3">
 			<div>
-				<h3 class="text-[13px] font-semibold">{title}</h3>
-				<p class="text-[12px] text-muted">{text}</p>
+				<h3 class="text-base font-semibold">{title}</h3>
+				<p class="text-xs text-muted">{text}</p>
 			</div>
 			<Button size="sm" onclick={() => openNew(category)}><Plus />Add variable</Button>
 		</header>
 		{#if list.length === 0}
-			<p class="px-4 py-6 text-center text-[12.5px] text-subtle">No variables.</p>
+			<p class="px-4 py-6 text-center text-sm text-subtle">No variables.</p>
 		{:else}
-			<table class="w-full table-fixed text-[12.5px]">
-				<thead class="border-b border-border text-[11px] uppercase tracking-wide text-subtle">
+			<table class="w-full table-fixed text-sm">
+				<thead class="border-b border-border text-2xs uppercase tracking-wide text-subtle">
 					<tr><th class="w-[34%] px-4 py-2 text-left font-medium">Key</th><th class="px-4 py-2 text-left font-medium">Value</th><th class="w-[26%] px-4 py-2 text-left font-medium">Description</th><th class="w-20"></th></tr>
 				</thead>
 				<tbody class="divide-y divide-border">
 					{#each list as v (v.id)}
 						{@const over = overridden.has(`${v.category}:${v.key}`)}
-						<tr class="group">
+						<tr class="group hover:bg-hover/50" animate:flip in:rise out:vanish>
 							<td class="px-4 py-2.5">
 								<span class="mono font-medium {over ? 'text-subtle line-through' : ''}">{v.key}</span>
 								<span class="ml-2 inline-flex gap-1">
@@ -136,14 +137,14 @@
 		<Field label="Description" for="d"><Input id="d" bind:value={form.description} placeholder="Optional" /></Field>
 		<div class="flex flex-col gap-2.5 rounded-lg border border-border-strong p-3">
 			{#if form.category === 'terraform'}
-				<label class="flex items-center justify-between gap-4 text-[12.5px]"><span><b class="font-medium">HCL</b> <span class="text-muted">— parse the value as HCL instead of a string</span></span><Switch bind:checked={form.hcl} /></label>
+				<label class="flex items-center justify-between gap-4 text-sm"><span><b class="font-medium">HCL</b> <span class="text-muted">— parse the value as HCL instead of a string</span></span><Switch bind:checked={form.hcl} /></label>
 			{/if}
-			<label class="flex items-center justify-between gap-4 text-[12.5px]">
+			<label class="flex items-center justify-between gap-4 text-sm">
 				<span><b class="font-medium">Sensitive</b> <span class="text-muted">— write-only, hidden in logs</span></span>
 				<Switch bind:checked={form.sensitive} disabled={editing?.sensitive} />
 			</label>
 		</div>
-		{#if err}<p class="text-[12.5px] text-danger">{err}</p>{/if}
+		{#if err}<p class="text-sm text-danger">{err}</p>{/if}
 	</form>
 	{#snippet footer()}
 		<Button onclick={() => (open = false)}>Cancel</Button>

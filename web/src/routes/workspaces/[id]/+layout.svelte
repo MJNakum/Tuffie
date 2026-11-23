@@ -11,7 +11,8 @@
 	import Button from '#lib/components/ui/Button.svelte';
 	import Menu from '#lib/components/ui/Menu.svelte';
 	import Kbd from '#lib/components/ui/Kbd.svelte';
-	import Spinner from '#lib/components/ui/Spinner.svelte';
+	import Skeleton from '#lib/components/ui/Skeleton.svelte';
+	import { indicator } from '#lib/motion';
 	import Play from '@lucide/svelte/icons/play';
 	import ChevronDown from '@lucide/svelte/icons/chevron-down';
 	import FileSearch from '@lucide/svelte/icons/file-search';
@@ -80,12 +81,22 @@
 	let termHeight = $state(320);
 	let term: ReturnType<typeof Terminal> | undefined = $state();
 
+	// The drawer glides open and shut by animating its height. The content
+	// inside keeps a fixed height, so the terminal does not reflow mid-way.
+	let dragging = $state(false);
 	function toggleTerm() {
-		termOpen = !termOpen;
-		if (termOpen) {
+		if (!termOpen && !termMounted) {
 			termMounted = true;
-			setTimeout(() => term?.focus(), 50);
+			// Mount closed, then open on the next frames so the height animates.
+			requestAnimationFrame(() => requestAnimationFrame(() => (termOpen = true)));
+		} else {
+			termOpen = !termOpen;
 		}
+		if (!termOpen || !termMounted) setTimeout(() => term?.focus(), 120);
+	}
+	function closeSession() {
+		termOpen = false;
+		setTimeout(() => (termMounted = false), 320);
 	}
 	function onKey(e: KeyboardEvent) {
 		if (e.ctrlKey && e.key === '`') {
@@ -96,8 +107,10 @@
 	function startDrag(e: PointerEvent) {
 		const startY = e.clientY;
 		const startH = termHeight;
+		dragging = true;
 		const move = (ev: PointerEvent) => (termHeight = Math.min(window.innerHeight - 160, Math.max(140, startH + startY - ev.clientY)));
 		const up = () => {
+			dragging = false;
 			window.removeEventListener('pointermove', move);
 			window.removeEventListener('pointerup', up);
 		};
@@ -109,8 +122,8 @@
 
 <svelte:window onkeydown={onKey} />
 
-<header class="shrink-0 border-b border-border bg-surface px-8 pt-5">
-	<nav class="mb-2 flex items-center gap-1 text-[12px] text-subtle">
+<header class="shrink-0 border-b border-border bg-surface px-8 pt-5" style="view-transition-name: ws-head">
+	<nav class="mb-2 flex items-center gap-1 text-xs text-subtle">
 		<a href="/" class="hover:text-fg">Workspaces</a>
 		<ChevronRight class="size-3" />
 		<span>{ctx.ws?.name ?? '…'}</span>
@@ -118,17 +131,22 @@
 	<div class="flex items-start justify-between gap-6">
 		<div class="min-w-0" data-tour="ws-header">
 			<div class="flex items-center gap-2.5">
-				<h1 class="truncate text-[20px] font-semibold tracking-[-0.02em]">{ctx.ws?.name ?? ''}</h1>
+				{#if ctx.ws}
+					<h1 class="motion-fade truncate text-2xl font-semibold tracking-[-0.02em]">{ctx.ws.name}</h1>
+				{:else}
+					<!-- Same height as the title, so the page does not move when it loads. -->
+					<Skeleton class="my-[3px] h-[19px] w-48" />
+				{/if}
 				{#if ctx.ws?.lock_run_id}
 					<a
 						href="{base}/runs/{ctx.ws.lock_run_id}"
-						class="inline-flex h-[22px] items-center gap-1 rounded-full bg-warning-soft px-2 text-[11.5px] font-medium text-warning"
+						class="inline-flex h-[22px] items-center gap-1 rounded-full bg-warning-soft px-2 text-2xs font-medium text-warning"
 						title="A run holds the workspace lock"><Lock class="size-3" />Locked</a
 					>
 				{/if}
 			</div>
 			{#if ctx.ws}
-				<div class="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-muted">
+				<div class="motion-fade mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted">
 					<span class="inline-flex items-center gap-1.5">
 						{#if ctx.ws.source_kind === 'git'}<GitBranch class="size-3.5" />{:else}<Folder class="size-3.5" />{/if}
 						<span class="mono">{ctx.ws.resolved_dir}</span>
@@ -136,6 +154,8 @@
 					<span class="mono">{ctx.ws.tool} {ctx.ws.tool_version ? `v${ctx.ws.tool_version}` : '(not found)'}</span>
 					{#if ctx.ws.auto_apply}<span class="text-warning">Auto-apply on</span>{/if}
 				</div>
+			{:else}
+				<div class="mt-1.5 flex h-[18px] items-center gap-4"><Skeleton class="h-3 w-80" /><Skeleton class="h-3 w-28" /></div>
 			{/if}
 		</div>
 		<div class="flex shrink-0 items-center gap-2">
@@ -149,13 +169,14 @@
 			</Menu>
 		</div>
 	</div>
-	<nav class="-mb-px mt-4 flex w-fit gap-5" data-tour="ws-tabs">
+	<nav class="relative -mb-px mt-4 flex w-fit gap-5" data-tour="ws-tabs" use:indicator={{ mode: 'underline' }}>
+		<!-- The underline slides to the active tab. -->
+		<span data-indicator class="pointer-events-none absolute left-0 top-0 rounded-full bg-primary opacity-0"></span>
 		{#each tabs as t (t.href)}
 			<a
 				href={t.href}
-				class="border-b-2 pb-2.5 text-[13px] font-medium transition-colors {isActive(t)
-					? 'border-primary text-fg'
-					: 'border-transparent text-muted hover:text-fg'}">{t.label}</a
+				aria-current={isActive(t) ? 'page' : undefined}
+				class="border-b-2 border-transparent pb-2.5 text-base font-medium {isActive(t) ? 'text-fg' : 'text-muted hover:text-fg'}">{t.label}</a
 			>
 		{/each}
 	</nav>
@@ -164,16 +185,24 @@
 <div class="relative flex min-h-0 flex-1 flex-col">
 	<div class="min-h-0 flex-1 overflow-auto">
 		{#if ctx.error && !ctx.ws}
-			<div class="m-8 rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-[13px] text-danger">{ctx.error}</div>
+			<div class="m-8 rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-base text-danger">{ctx.error}</div>
 		{:else if !ctx.ws}
-			<div class="grid place-items-center py-20"><Spinner class="size-5" /></div>
+			<div class="grid gap-5 px-8 py-6 xl:grid-cols-[minmax(0,1fr)_340px]" aria-busy="true">
+				<div class="flex flex-col gap-5"><Skeleton class="h-40 w-full rounded-lg" /><Skeleton class="h-48 w-full rounded-lg" /></div>
+				<div class="flex flex-col gap-5"><Skeleton class="h-28 w-full rounded-lg" /><Skeleton class="h-64 w-full rounded-lg" /></div>
+			</div>
 		{:else}
 			{@render children()}
 		{/if}
 	</div>
 
 	{#if termMounted && ctx.ws}
-		<div class="shrink-0 border-t border-border-strong bg-[var(--term-bg)] {termOpen ? '' : 'hidden'}" style="height: {termHeight}px">
+		<div
+			class="shrink-0 overflow-hidden bg-[var(--term-bg)] {termOpen ? 'border-t border-border-strong' : ''}"
+			style="view-transition-name: ws-term; height: {termOpen ? termHeight : 0}px; transition: {dragging ? 'none' : 'height var(--dur-slow) var(--ease-move)'}"
+			inert={!termOpen}
+		>
+		<div style="height: {termHeight}px">
 			<div
 				role="separator"
 				aria-orientation="horizontal"
@@ -181,7 +210,7 @@
 				onpointerdown={startDrag}
 			></div>
 			<div class="flex h-8 items-center justify-between border-b border-white/5 px-3">
-				<span class="inline-flex items-center gap-2 text-[12px] font-medium text-[#9aa3b5]">
+				<span class="inline-flex items-center gap-2 text-xs font-medium text-[#9aa3b5]">
 					<SquareTerminal class="size-3.5" />Terminal
 					<span class="mono font-normal text-[#697285]">{ctx.ws.resolved_dir}</span>
 				</span>
@@ -190,10 +219,7 @@
 					<button
 						class="grid size-6 place-items-center rounded text-[#697285] hover:bg-white/5 hover:text-white"
 						title="Close session"
-						onclick={() => {
-							termOpen = false;
-							termMounted = false;
-						}}><X class="size-3.5" /></button
+						onclick={closeSession}><X class="size-3.5" /></button
 					>
 				</div>
 			</div>
@@ -207,6 +233,7 @@
 					onCommandFinished={() => ctx.reload()}
 				/>
 			</div>
+		</div>
 		</div>
 	{/if}
 </div>

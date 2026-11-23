@@ -4,6 +4,8 @@
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
 	import ValueView from './ValueView.svelte';
 	import Input from './ui/Input.svelte';
+	import Segmented from './ui/Segmented.svelte';
+	import { conceal, flip, reveal, rise, vanish } from '#lib/motion';
 
 	let { plan }: { plan: Plan } = $props();
 	let filter = $state('');
@@ -47,45 +49,39 @@
 </script>
 
 <div class="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2.5" data-tour="plan-filter">
-	<div class="flex items-center gap-1 rounded-md bg-surface-2 p-0.5">
-		{#each ['all', 'create', 'update', 'replace', 'delete', 'read'] as k (k)}
-			{#if k === 'all' || counts[k]}
-				<button
-					class="h-6 rounded px-2 text-[12px] font-medium transition-colors {only === k ? 'bg-surface-3 text-fg shadow-sm' : 'text-muted hover:text-fg'}"
-					onclick={() => (only = k)}
-				>
-					{k === 'all' ? 'All' : actionInfo[k as keyof typeof actionInfo].label}
-					<span class="ml-0.5 tabular text-subtle">{k === 'all' ? changes.length : counts[k]}</span>
-				</button>
-			{/if}
-		{/each}
-	</div>
+	<Segmented
+		bind:value={only}
+		size="sm"
+		options={['all', 'create', 'update', 'replace', 'delete', 'read']
+			.filter((k) => k === 'all' || counts[k])
+			.map((k) => ({ value: k, label: k === 'all' ? 'All' : actionInfo[k as keyof typeof actionInfo].label, count: k === 'all' ? changes.length : counts[k] }))}
+	/>
 	<div class="ml-auto w-64"><Input placeholder="Filter by address" bind:value={filter} class="h-7" /></div>
 </div>
 
 {#if changes.length === 0}
-	<p class="px-4 py-8 text-center text-[13px] text-muted">No changes. Your infrastructure matches the configuration.</p>
+	<p class="px-4 py-8 text-center text-base text-muted">No changes. Your infrastructure matches the configuration.</p>
 {/if}
 
 <ul class="divide-y divide-border">
 	{#each shown as c (c.address)}
 		{@const act = actionOf(c.actions)}
 		{@const info = actionInfo[act]}
-		<li>
+		<li animate:flip in:rise out:vanish>
 			<button
 				class="flex w-full items-center gap-3 px-4 py-2 text-left hover:bg-hover"
 				onclick={() => (open[c.address] = !open[c.address])}
 			>
-				<ChevronRight class="size-3.5 shrink-0 text-subtle transition-transform {open[c.address] ? 'rotate-90' : ''}" />
-				<span class="grid size-5 shrink-0 place-items-center rounded font-mono text-[12px] font-bold {toneBg[info.tone]}">{info.sym}</span>
-				<span class="mono min-w-0 flex-1 truncate text-[12.5px]">{c.address}</span>
-				{#if c.action_reason}<span class="hidden text-[11.5px] text-subtle md:inline">{c.action_reason.replaceAll('_', ' ')}</span>{/if}
-				<span class="text-[12px] font-medium {toneText[info.tone]}">{info.label}</span>
+				<ChevronRight class="size-3.5 shrink-0 text-subtle transition-transform duration-(--dur-base) ease-move {open[c.address] ? 'rotate-90' : ''}" />
+				<span class="grid size-5 shrink-0 place-items-center rounded font-mono text-xs font-bold {toneBg[info.tone]}">{info.sym}</span>
+				<span class="mono min-w-0 flex-1 truncate text-sm">{c.address}</span>
+				{#if c.action_reason}<span class="hidden text-2xs text-subtle md:inline">{c.action_reason.replaceAll('_', ' ')}</span>{/if}
+				<span class="text-xs font-medium {toneText[info.tone]}">{info.label}</span>
 			</button>
 			{#if open[c.address]}
-				<div class="border-t border-border bg-surface-2/60 px-4 py-3 pl-[52px]">
-					<div class="mb-2 text-[11.5px] text-subtle">{c.provider_name.replace('registry.terraform.io/', '')}</div>
-					<table class="mono w-full text-[12px] leading-[1.6]">
+				<div class="border-t border-border bg-surface-2/60 px-4 py-3 pl-[52px]" in:reveal out:conceal>
+					<div class="mb-2 text-2xs text-subtle">{c.provider_name.replace('registry.terraform.io/', '')}</div>
+					<table class="mono w-full text-xs leading-[1.6]">
 						<tbody>
 							{#each rows(c) as r (r.key)}
 								{#if r.kind !== 'same' || act === 'create' || act === 'delete'}
@@ -111,7 +107,7 @@
 						</tbody>
 					</table>
 					{#if act === 'update' && rows(c).some((r) => r.kind === 'same')}
-						<p class="mt-2 text-[11.5px] text-subtle">{rows(c).filter((r) => r.kind === 'same').length} unchanged attributes hidden</p>
+						<p class="mt-2 text-2xs text-subtle">{rows(c).filter((r) => r.kind === 'same').length} unchanged attributes hidden</p>
 					{/if}
 				</div>
 			{/if}
@@ -121,8 +117,8 @@
 
 {#if plan.output_changes.filter((o) => actionOf(o.actions) !== 'no-op').length}
 	<div class="border-t border-border px-4 py-3">
-		<h4 class="mb-2 text-[12px] font-semibold uppercase tracking-wide text-subtle">Outputs</h4>
-		<table class="mono w-full text-[12px]">
+		<h4 class="mb-2 text-xs font-semibold uppercase tracking-wide text-subtle">Outputs</h4>
+		<table class="mono w-full text-xs">
 			<tbody>
 				{#each plan.output_changes.filter((o) => actionOf(o.actions) !== 'no-op') as o (o.name)}
 					{@const info = actionInfo[actionOf(o.actions)]}

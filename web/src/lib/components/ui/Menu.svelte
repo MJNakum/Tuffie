@@ -33,7 +33,7 @@
 			{align}
 			{side}
 			sideOffset={6}
-			class="z-50 min-w-56 rounded-lg border border-border-strong bg-surface-2 p-1 shadow-pop focus:outline-none"
+			class="motion-menu z-50 min-w-56 rounded-lg border border-border-strong bg-surface-2 p-1 shadow-pop focus:outline-none"
 		>
 			{#each items as it, i (i)}
 				{#if it === 'separator'}
@@ -42,7 +42,7 @@
 					<DropdownMenu.Item
 						disabled={it.disabled}
 						onSelect={it.onSelect}
-						class="flex cursor-pointer items-start gap-2.5 rounded-md px-2 py-1.5 text-[13px] outline-none data-[disabled]:opacity-50 data-[highlighted]:bg-hover {it.danger
+						class="flex cursor-pointer items-start gap-2.5 rounded-md px-2 py-1.5 transition-colors duration-(--dur-fast) text-base outline-none data-[disabled]:opacity-50 data-[highlighted]:bg-hover {it.danger
 							? 'text-danger'
 							: 'text-fg'}"
 					>
@@ -51,7 +51,7 @@
 						{/if}
 						<div class="flex flex-col">
 							<span>{it.label}</span>
-							{#if it.hint}<span class="text-[11.5px] text-subtle">{it.hint}</span>{/if}
+							{#if it.hint}<span class="text-2xs text-subtle">{it.hint}</span>{/if}
 						</div>
 					</DropdownMenu.Item>
 				{/if}

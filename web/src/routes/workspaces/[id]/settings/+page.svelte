@@ -83,7 +83,7 @@
 
 <div class="mx-auto flex max-w-3xl flex-col gap-6 px-8 py-6">
 	<form onsubmit={save} class="overflow-hidden rounded-lg border border-border bg-surface">
-		<header class="border-b border-border px-5 py-3"><h2 class="text-[13px] font-semibold">General</h2></header>
+		<header class="border-b border-border px-5 py-3"><h2 class="text-base font-semibold">General</h2></header>
 		<div class="flex flex-col gap-4 p-5">
 			<Field label="Name" for="n"><Input id="n" bind:value={f.name} /></Field>
 			<Field label="Description" for="d"><Textarea id="d" bind:value={f.description} class="min-h-16" /></Field>
@@ -99,8 +99,8 @@
 			</div>
 			<label class="flex items-start justify-between gap-6 rounded-lg border border-border-strong px-3.5 py-3">
 				<div>
-					<div class="text-[13px] font-medium">Auto-apply</div>
-					<div class="text-[12px] text-muted">Apply successful plans without confirmation.</div>
+					<div class="text-base font-medium">Auto-apply</div>
+					<div class="text-xs text-muted">Apply successful plans without confirmation.</div>
 				</div>
 				<Switch bind:checked={f.auto_apply} />
 			</label>
@@ -116,19 +116,19 @@
 	{#if ctx.ws?.source_kind === 'git'}
 		<section class="flex items-center justify-between gap-6 rounded-lg border border-border bg-surface px-5 py-4">
 			<div>
-				<h2 class="text-[13px] font-semibold">Sync repository</h2>
-				<p class="text-[12.5px] text-muted">Fetch from <span class="mono">{ctx.ws.git_url}</span> and check out <span class="mono">{ctx.ws.git_ref || 'the default branch'}</span>. Local edits are overwritten.</p>
+				<h2 class="text-base font-semibold">Sync repository</h2>
+				<p class="text-sm text-muted">Fetch from <span class="mono">{ctx.ws.git_url}</span> and check out <span class="mono">{ctx.ws.git_ref || 'the default branch'}</span>. Local edits are overwritten.</p>
 			</div>
 			<Button loading={syncing} onclick={sync}><RefreshCw />Sync now</Button>
 		</section>
 	{/if}
 
 	<section class="overflow-hidden rounded-lg border border-danger/40 bg-surface">
-		<header class="border-b border-danger/30 bg-danger-soft px-5 py-3"><h2 class="text-[13px] font-semibold text-danger">Danger zone</h2></header>
+		<header class="border-b border-danger/30 bg-danger-soft px-5 py-3"><h2 class="text-base font-semibold text-danger">Danger zone</h2></header>
 		<div class="flex items-center justify-between gap-6 px-5 py-4">
 			<div>
-				<div class="text-[13px] font-medium">Delete this workspace</div>
-				<p class="text-[12.5px] text-muted">
+				<div class="text-base font-medium">Delete this workspace</div>
+				<p class="text-sm text-muted">
 					Removes runs, logs and variables from Tuffie. Your infrastructure and state are not touched.
 					{#if ctx.ws?.source_kind === 'local'}Your local folder is not deleted.{:else}The Tuffie checkout of the repository is deleted.{/if}
 				</p>

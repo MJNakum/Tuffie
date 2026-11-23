@@ -5,11 +5,11 @@
 </script>
 
 <div class="flex flex-col gap-1.5">
-	<label for={id} class="text-[12.5px] font-medium text-fg">{label}</label>
+	<label for={id} class="text-sm font-medium text-fg">{label}</label>
 	{@render children()}
 	{#if error}
-		<p class="text-[12px] text-danger">{error}</p>
+		<p class="text-xs text-danger">{error}</p>
 	{:else if hint}
-		<p class="text-[12px] text-subtle">{hint}</p>
+		<p class="text-xs text-subtle">{hint}</p>
 	{/if}
 </div>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Skeleton from '#lib/components/ui/Skeleton.svelte';
 	import { page } from '$app/state';
 	import { goto, beforeNavigate } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
@@ -191,27 +192,27 @@ warn contains msg if {
 
 <div class="min-h-0 flex-1 overflow-auto px-8 py-6">
 	{#if !set}
-		<div class="grid place-items-center py-16"><Spinner /></div>
+		<div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]"><Skeleton class="h-[540px] w-full rounded-lg" /><Skeleton class="h-[540px] w-full rounded-lg" /></div>
 	{:else}
-		<div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
+		<div class="motion-rise grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
 			<div class="flex min-w-0 flex-col gap-5">
 				{#if set.source_kind === 'inline'}
 					<div class="grid h-[540px] grid-cols-[210px_minmax(0,1fr)] overflow-hidden rounded-lg border border-border bg-surface">
 						<div class="flex min-h-0 flex-col border-r border-border">
 							<div class="flex h-10 items-center justify-between border-b border-border pl-3 pr-1.5">
-								<span class="text-[11.5px] font-medium uppercase tracking-wide text-subtle">Policies</span>
+								<span class="text-2xs font-medium uppercase tracking-wide text-subtle">Policies</span>
 								<Button size="icon-sm" variant="ghost" title="New policy" onclick={newPolicy}><FilePlus /></Button>
 							</div>
 							<div class="min-h-0 flex-1 overflow-auto py-1">
 								{#each set.policies as p (p.id)}
 									<button
-										class="flex w-full items-center gap-1.5 px-3 py-1.5 text-left text-[12.5px] {current === p.id ? 'bg-primary-soft text-primary-text' : 'hover:bg-hover'}"
+										class="flex w-full items-center gap-1.5 px-3 py-1.5 text-left text-sm {current === p.id ? 'bg-primary-soft text-primary-text' : 'hover:bg-hover'}"
 										onclick={() => select(p.id)}
 									>
 										<FileCode class="size-3.5 shrink-0 {current === p.id ? '' : 'text-subtle'}" /><span class="truncate">{p.name}</span>
 									</button>
 								{:else}
-									<div class="px-3 py-4 text-[12.5px] text-subtle">
+									<div class="px-3 py-4 text-sm text-subtle">
 										No policies yet.
 										<button class="mt-2 block text-primary-text hover:underline" onclick={newPolicy}>Add one from a template</button>
 									</div>
@@ -220,7 +221,7 @@ warn contains msg if {
 						</div>
 						<div class="flex min-h-0 flex-col">
 							<div class="flex h-10 shrink-0 items-center justify-between gap-3 border-b border-border px-3">
-								<span class="mono flex items-center gap-2 truncate text-[12.5px]">
+								<span class="mono flex items-center gap-2 truncate text-sm">
 									{set.policies.find((p) => p.id === current)?.name ?? 'No policy selected'}
 									{#if dirty}<span class="size-1.5 rounded-full bg-warning"></span>{/if}
 								</span>
@@ -232,13 +233,13 @@ warn contains msg if {
 								{/if}
 							</div>
 							{#if compileErr}
-								<pre class="max-h-32 shrink-0 overflow-auto whitespace-pre-wrap border-b border-danger/30 bg-danger-soft px-3 py-2 font-mono text-[11.5px] text-danger">{compileErr}</pre>
+								<pre class="max-h-32 shrink-0 overflow-auto whitespace-pre-wrap border-b border-danger/30 bg-danger-soft px-3 py-2 font-mono text-2xs text-danger">{compileErr}</pre>
 							{/if}
 							<div class="min-h-0 flex-1">
 								{#if current}
 									<CodeEditor value={original} path={set.policies.find((p) => p.id === current)?.name ?? 'policy.rego'} onChange={(v) => (content = v)} onSave={savePolicy} />
 								{:else}
-									<div class="grid h-full place-items-center text-[13px] text-subtle">Select or add a policy.</div>
+									<div class="grid h-full place-items-center text-base text-subtle">Select or add a policy.</div>
 								{/if}
 							</div>
 						</div>
@@ -246,17 +247,17 @@ warn contains msg if {
 				{:else}
 					<section class="overflow-hidden rounded-lg border border-border bg-surface">
 						<header class="border-b border-border px-4 py-3">
-							<h3 class="text-[13px] font-semibold">Policy files</h3>
-							<p class="mono text-[12px] text-muted">{set.source_path}</p>
+							<h3 class="text-base font-semibold">Policy files</h3>
+							<p class="mono text-xs text-muted">{set.source_path}</p>
 						</header>
 						{#if set.load_error}
-							<div class="flex items-start gap-2 px-4 py-3 text-[12.5px] text-danger"><TriangleAlert class="mt-0.5 size-4" />{set.load_error}</div>
+							<div class="flex items-start gap-2 px-4 py-3 text-sm text-danger"><TriangleAlert class="mt-0.5 size-4" />{set.load_error}</div>
 						{:else}
 							<ul class="divide-y divide-border">
 								{#each set.files ?? [] as file (file)}
-									<li class="mono flex items-center gap-2 px-4 py-2 text-[12.5px]"><FileCode class="size-3.5 text-subtle" />{file}</li>
+									<li class="mono flex items-center gap-2 px-4 py-2 text-sm"><FileCode class="size-3.5 text-subtle" />{file}</li>
 								{:else}
-									<li class="px-4 py-4 text-[12.5px] text-subtle">No *.rego files found. Files that end in _test.rego are skipped.</li>
+									<li class="px-4 py-4 text-sm text-subtle">No *.rego files found. Files that end in _test.rego are skipped.</li>
 								{/each}
 							</ul>
 						{/if}
@@ -266,8 +267,8 @@ warn contains msg if {
 				<section class="overflow-hidden rounded-lg border border-border bg-surface">
 					<header class="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
 						<div>
-							<h3 class="flex items-center gap-2 text-[13px] font-semibold"><FlaskConical class="size-4 text-muted" />Test against a plan</h3>
-							<p class="text-[12px] text-muted">Run this policy set on the saved plan of an earlier run. Nothing is applied.</p>
+							<h3 class="flex items-center gap-2 text-base font-semibold"><FlaskConical class="size-4 text-muted" />Test against a plan</h3>
+							<p class="text-xs text-muted">Run this policy set on the saved plan of an earlier run. Nothing is applied.</p>
 						</div>
 						<div class="flex items-center gap-2">
 							<Select
@@ -283,13 +284,13 @@ warn contains msg if {
 					{#if result}
 						<PolicyResults sets={[result]} />
 					{:else}
-						<p class="px-4 py-5 text-[12.5px] text-subtle">Choose a run and click Run test.</p>
+						<p class="px-4 py-5 text-sm text-subtle">Choose a run and click Run test.</p>
 					{/if}
 				</section>
 			</div>
 
 			<form class="h-fit overflow-hidden rounded-lg border border-border bg-surface" onsubmit={saveSet}>
-				<header class="border-b border-border px-4 py-3"><h3 class="text-[13px] font-semibold">Settings</h3></header>
+				<header class="border-b border-border px-4 py-3"><h3 class="text-base font-semibold">Settings</h3></header>
 				<div class="flex flex-col gap-4 p-4">
 					<Field label="Name" for="n"><Input id="n" bind:value={f.name} /></Field>
 					<Field label="Description" for="d"><Textarea id="d" bind:value={f.description} class="min-h-14" /></Field>

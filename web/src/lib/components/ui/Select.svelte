@@ -12,7 +12,7 @@
 <div class="relative {cls}">
 	<select
 		bind:value
-		class="h-8 w-full appearance-none rounded-md border border-border-strong bg-surface pl-2.5 pr-8 text-[13px] text-fg focus:border-primary focus:outline-none focus:ring-3 focus:ring-primary-soft"
+		class="h-8 w-full appearance-none rounded-md border border-border-strong bg-surface pl-2.5 pr-8 text-base text-fg focus:border-primary focus:outline-none focus:ring-3 focus:ring-primary-soft transition-[border-color,box-shadow] duration-(--dur-fast) hover:border-[color-mix(in_srgb,var(--border-strong),var(--fg)_15%)]"
 		{...rest}
 	>
 		{#each options as o (o.value)}

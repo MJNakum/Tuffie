@@ -8,5 +8,5 @@
 		<path d="M9 10h14v3.2h-5.4V23h-3.2v-9.8H9z" fill="var(--primary)" />
 		<rect x="19.6" y="17.6" width="3.4" height="3.4" rx=".8" fill="var(--primary-text)" />
 	</svg>
-	<span class="text-[15px] font-semibold tracking-[-0.02em]">tuffie</span>
+	<span class="text-lg font-semibold tracking-[-0.02em]">tuffie</span>
 </div>

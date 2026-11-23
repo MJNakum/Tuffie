@@ -6,7 +6,8 @@
 	import type { Run, StateView } from '#lib/types';
 	import Card from '#lib/components/ui/Card.svelte';
 	import Button from '#lib/components/ui/Button.svelte';
-	import Spinner from '#lib/components/ui/Spinner.svelte';
+	import Skeleton from '#lib/components/ui/Skeleton.svelte';
+	import { flip, rise, vanish } from '#lib/motion';
 	import RunStatus from '#lib/components/RunStatus.svelte';
 	import ChangeCounts from '#lib/components/ChangeCounts.svelte';
 	import ValueView from '#lib/components/ValueView.svelte';
@@ -83,15 +84,18 @@
 		<Card title="Latest run" pad={false} tour="latest-run">
 			{#snippet actions()}<Button size="sm" variant="ghost" href="/workspaces/{ws.id}/runs">All runs<ArrowRight /></Button>{/snippet}
 			{#if runs === null}
-				<div class="grid place-items-center py-10"><Spinner /></div>
+				<div class="flex items-center gap-4 px-4 py-4"><Skeleton class="h-[22px] w-24 rounded-full" /><div class="flex-1"><Skeleton class="h-3.5 w-56" /><Skeleton class="mt-2 h-3 w-40" /></div></div>
+				<div class="border-t border-border">
+					{#each { length: 3 } as _, i (i)}<div class="flex h-[33px] items-center gap-3 border-b border-border px-4 last:border-b-0"><Skeleton class="size-4 rounded-full" /><Skeleton class="h-3 w-64" /></div>{/each}
+				</div>
 			{:else if !latest}
-				<div class="px-4 py-8 text-center text-[13px] text-muted">No runs yet. Use <b class="text-fg">Start run</b> to create the first plan.</div>
+				<div class="px-4 py-8 text-center text-base text-muted">No runs yet. Use <b class="text-fg">Start run</b> to create the first plan.</div>
 			{:else}
-				<a href="/workspaces/{ws.id}/runs/{latest.id}" class="flex items-center gap-4 px-4 py-4 hover:bg-hover">
+				<a href="/workspaces/{ws.id}/runs/{latest.id}" class="motion-fade flex items-center gap-4 px-4 py-4 hover:bg-hover">
 					<RunStatus status={latest.status} />
 					<div class="min-w-0 flex-1">
-						<div class="truncate text-[13px] font-medium">{latest.message || kindLabel[latest.kind]}</div>
-						<div class="mt-0.5 text-[12px] text-subtle">{kindLabel[latest.kind]} · <span class="mono">{latest.id}</span> · {ago(latest.created_at)}</div>
+						<div class="truncate text-base font-medium">{latest.message || kindLabel[latest.kind]}</div>
+						<div class="mt-0.5 text-xs text-subtle">{kindLabel[latest.kind]} · <span class="mono">{latest.id}</span> · {ago(latest.created_at)}</div>
 					</div>
 					{#if latest.has_changes !== null}
 						<ChangeCounts add={latest.add_count} change={latest.change_count} destroy={latest.destroy_count} size="lg" />
@@ -99,7 +103,7 @@
 					<ArrowRight class="size-4 text-subtle" />
 				</a>
 				{#if latest.status === 'planned'}
-					<div class="flex items-center justify-between border-t border-border bg-warning-soft px-4 py-2.5 text-[12.5px]">
+					<div class="flex items-center justify-between border-t border-border bg-warning-soft px-4 py-2.5 text-sm">
 						<span class="text-warning">This plan waits for your confirmation. The workspace is locked until you apply or discard it.</span>
 						<Button size="sm" variant="primary" href="/workspaces/{ws.id}/runs/{latest.id}">Review</Button>
 					</div>
@@ -108,8 +112,8 @@
 			{#if runs && runs.length > 1}
 				<ul class="divide-y divide-border border-t border-border">
 					{#each runs.filter((r) => r.id !== latest?.id).slice(0, 4) as r (r.id)}
-						<li>
-							<a href="/workspaces/{ws.id}/runs/{r.id}" class="flex items-center gap-3 px-4 py-2 text-[12.5px] hover:bg-hover">
+						<li animate:flip in:rise out:vanish>
+							<a href="/workspaces/{ws.id}/runs/{r.id}" class="flex items-center gap-3 px-4 py-2 text-sm hover:bg-hover">
 								<RunStatus status={r.status} variant="icon" kind={r.kind} hasChanges={r.has_changes} />
 								{#if r.kind === 'cli'}
 									<SquareTerminal class="size-3.5 text-subtle" /><span class="mono min-w-0 flex-1 truncate text-muted">{r.command}</span>
@@ -127,21 +131,21 @@
 		<Card title="Resources" pad={false} tour="resources-card">
 			{#snippet actions()}<Button size="sm" variant="ghost" href="/workspaces/{ws.id}/state">Open state<ArrowRight /></Button>{/snippet}
 			{#if stErr}
-				<p class="px-4 py-6 text-[13px] text-muted">{stErr}</p>
+				<p class="px-4 py-6 text-base text-muted">{stErr}</p>
 			{:else if st === null}
-				<div class="grid place-items-center py-10"><Spinner /></div>
+				<div class="px-4 py-4"><Skeleton class="h-8 w-28" /><div class="mt-4 grid gap-3 sm:grid-cols-2">{#each { length: 4 } as _, i (i)}<Skeleton class="h-3 w-full" />{/each}</div></div>
 			{:else if !st.initialized}
-				<p class="px-4 py-6 text-[13px] text-muted">The workspace is not initialized yet. The first run runs <code>init</code> for you.</p>
+				<p class="px-4 py-6 text-base text-muted">The workspace is not initialized yet. The first run runs <code>init</code> for you.</p>
 			{:else if managed === 0}
-				<p class="px-4 py-6 text-[13px] text-muted">The state has no resources.</p>
+				<p class="px-4 py-6 text-base text-muted">The state has no resources.</p>
 			{:else}
 				<div class="flex items-baseline gap-2 px-4 pt-4">
-					<span class="text-[28px] font-semibold tracking-[-0.02em] tabular">{managed}</span>
-					<span class="text-[13px] text-muted">managed resources · {byType.length} types</span>
+					<span class="text-3xl font-semibold tracking-[-0.02em] tabular">{managed}</span>
+					<span class="text-base text-muted">managed resources · {byType.length} types</span>
 				</div>
 				<ul class="grid gap-x-6 px-4 pb-4 pt-3 sm:grid-cols-2">
 					{#each byType.slice(0, 10) as [t, n] (t)}
-						<li class="flex items-center justify-between border-b border-border py-1.5 text-[12.5px]">
+						<li class="flex items-center justify-between border-b border-border py-1.5 text-sm">
 							<span class="mono truncate text-muted">{t}</span><span class="tabular">{n}</span>
 						</li>
 					{/each}
@@ -163,8 +167,8 @@
 								? 'bg-danger-soft text-danger'
 								: 'bg-surface-3 text-subtle'}"><Radar class="size-4" /></span
 				>
-				<div class="min-w-0 text-[12.5px]">
-					<div class="text-[13px] font-medium">
+				<div class="min-w-0 text-sm">
+					<div class="text-base font-medium">
 						{#if ws.drift_status === 'drifted'}{ws.drift_count} resource{ws.drift_count === 1 ? '' : 's'} drifted
 						{:else if ws.drift_status === 'ok'}No drift
 						{:else if ws.drift_status === 'error'}Last check failed
@@ -180,7 +184,7 @@
 			</div>
 		</Card>
 		<Card title="Details">
-			<dl class="grid grid-cols-[110px_minmax(0,1fr)] gap-x-3 gap-y-2.5 text-[12.5px]">
+			<dl class="grid grid-cols-[110px_minmax(0,1fr)] gap-x-3 gap-y-2.5 text-sm">
 				<dt class="text-subtle">ID</dt><dd class="mono truncate">{ws.id}</dd>
 				<dt class="text-subtle">Source</dt><dd>{ws.source_kind === 'git' ? 'Git repository' : 'Local folder'}</dd>
 				{#if ws.source_kind === 'git'}
@@ -197,7 +201,7 @@
 		</Card>
 		{#if st?.outputs?.length}
 			<Card title="Outputs">
-				<dl class="flex flex-col gap-2.5 text-[12.5px]">
+				<dl class="flex flex-col gap-2.5 text-sm">
 					{#each st.outputs as o (o.name)}
 						<div><dt class="mono text-subtle">{o.name}</dt><dd class="mono mt-0.5"><ValueView value={o.value} /></dd></div>
 					{/each}

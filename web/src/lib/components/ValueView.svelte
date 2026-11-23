@@ -10,7 +10,7 @@
 {:else if value === null || value === undefined}
 	<span class="text-subtle">null</span>
 {:else if value === '(sensitive value)'}
-	<span class="rounded bg-surface-3 px-1 text-[11.5px] text-muted">sensitive</span>
+	<span class="rounded bg-surface-3 px-1 text-2xs text-muted">sensitive</span>
 {:else if typeof value === 'string'}
 	<span class="break-all text-[#9ecbff] [[data-theme=light]_&]:text-[#0a5bb5]">"{value}"</span>
 {:else if typeof value === 'number'}

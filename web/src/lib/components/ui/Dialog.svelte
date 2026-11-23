@@ -14,18 +14,18 @@
 
 <Dialog.Root bind:open>
 	<Dialog.Portal>
-		<Dialog.Overlay class="fixed inset-0 z-50 bg-black/60 backdrop-blur-[2px] data-[state=open]:animate-in" />
+		<Dialog.Overlay class="motion-overlay fixed inset-0 z-50 bg-black/60 backdrop-blur-[2px]" />
 		<Dialog.Content
-			class="fixed left-1/2 top-[12vh] z-50 w-[calc(100vw-32px)] {width} -translate-x-1/2 rounded-xl border border-border-strong bg-surface shadow-pop focus:outline-none"
+			class="motion-dialog fixed left-1/2 top-[12vh] z-50 w-[calc(100vw-32px)] {width} -translate-x-1/2 rounded-xl border border-border-strong bg-surface shadow-pop focus:outline-none"
 		>
 			<div class="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
 				<div>
-					<Dialog.Title class="text-[15px] font-semibold tracking-[-0.01em]">{title}</Dialog.Title>
+					<Dialog.Title class="text-lg font-semibold tracking-[-0.01em]">{title}</Dialog.Title>
 					{#if description}
-						<Dialog.Description class="mt-0.5 text-[12.5px] text-muted">{description}</Dialog.Description>
+						<Dialog.Description class="mt-0.5 text-sm text-muted">{description}</Dialog.Description>
 					{/if}
 				</div>
-				<Dialog.Close class="-mr-1.5 rounded-md p-1 text-subtle hover:bg-hover hover:text-fg"><X class="size-4" /></Dialog.Close>
+				<Dialog.Close class="pressable -mr-1.5 rounded-md p-1 text-subtle hover:bg-hover hover:text-fg"><X class="size-4" /></Dialog.Close>
 			</div>
 			<div class="px-5 py-4">{@render children()}</div>
 			{#if footer}

@@ -1,6 +1,8 @@
 <script lang="ts">
+	import Skeleton from '#lib/components/ui/Skeleton.svelte';
 	import { page } from '$app/state';
 	import { onDestroy, untrack } from 'svelte';
+	import { conceal, indicator, reveal, rise } from '#lib/motion';
 	import { toast } from 'svelte-sonner';
 	import { api, errMsg, wsUrl } from '#lib/api';
 	import { poll } from '#lib/app.svelte';
@@ -47,15 +49,23 @@
 	async function loadRun() {
 		try {
 			const prev = run?.status;
-			run = await api.run(runId);
-			if (run.kind === 'cli') {
-				if (output === null || isActive(run.status)) output = await api.runOutput(runId).catch(() => '');
-			} else if (!plan && run.plan_finished_at) {
-				plan = await api.runPlan(runId).catch(() => null);
-				if (plan) planTab = 'changes';
+			const r = await api.run(runId);
+			// Load everything the page shows before it renders, in parallel,
+			// so the page appears in one step instead of growing piece by piece.
+			const [o, pl, po, vars] = await Promise.all([
+				r.kind === 'cli' && (output === null || isActive(r.status)) ? api.runOutput(runId).catch(() => '') : null,
+				r.kind !== 'cli' && !plan && r.plan_finished_at ? api.runPlan(runId).catch(() => null) : null,
+				!policy && r.policy_status ? api.runPolicy(runId).catch(() => null) : null,
+				origins === null && r.kind !== 'cli' && r.started_at ? api.runVariables(runId).catch(() => []) : null
+			]);
+			if (o !== null) output = o;
+			if (pl) {
+				plan = pl;
+				planTab = 'changes';
 			}
-			if (!policy && run.policy_status) policy = await api.runPolicy(runId).catch(() => null);
-			if (origins === null && run.kind !== 'cli' && run.started_at) origins = await api.runVariables(runId).catch(() => []);
+			if (po) policy = po;
+			if (vars) origins = vars;
+			run = r;
 			if (prev && prev !== run.status) ctx.reload();
 		} catch (e) {
 			toast.error(errMsg(e));
@@ -166,36 +176,36 @@
 </script>
 
 {#snippet dot(s: string)}
-	<span class="absolute -left-[10px] top-3 z-10 grid size-[19px] place-items-center rounded-full border {stepDot[s]}">
+	<span class="absolute -left-[10px] top-3 z-10 grid size-[19px] place-items-center rounded-full border transition-colors duration-(--dur-slow) {stepDot[s]}">
 		{#if s === 'running'}<span class="size-1.5 rounded-full bg-current pulse-dot"></span>
 		{:else if s === 'done'}<Check class="size-3" strokeWidth={3} />
 		{:else if s === 'errored' || s === 'blocked' || s === 'failed'}<X class="size-3" strokeWidth={3} />
 		{:else if s === 'passed'}<Check class="size-3" strokeWidth={3} />
-		{:else if s === 'warned'}<span class="text-[10px] font-bold">!</span>
-		{:else if s === 'needs'}<span class="text-[10px] font-bold">!</span>{/if}
+		{:else if s === 'warned'}<span class="text-2xs font-bold">!</span>
+		{:else if s === 'needs'}<span class="text-2xs font-bold">!</span>{/if}
 	</span>
 {/snippet}
 
 <div class="px-8 py-6">
-	<nav class="mb-4 flex items-center gap-1 text-[12px] text-subtle">
+	<nav class="mb-4 flex items-center gap-1 text-xs text-subtle">
 		<a href="/workspaces/{ctx.id}/runs" class="hover:text-fg">Runs</a>
 		<ChevronRight class="size-3" /><span class="mono">{runId}</span>
 	</nav>
 
 	{#if !run}
-		<div class="grid place-items-center py-16"><Spinner class="size-5" /></div>
+		<div class="flex flex-col gap-4" aria-busy="true"><Skeleton class="h-5 w-28 rounded-full" /><Skeleton class="h-6 w-80" /><Skeleton class="h-3 w-56" /><Skeleton class="mt-3 h-56 w-full rounded-lg" /><Skeleton class="h-24 w-full rounded-lg" /></div>
 	{:else}
 		<!-- Summary -->
-		<div class="mb-6 flex flex-wrap items-start justify-between gap-4" data-tour="run-summary">
+		<div class="motion-rise mb-6 flex flex-wrap items-start justify-between gap-4" data-tour="run-summary">
 			<div class="min-w-0">
 				<div class="flex items-center gap-3">
 					<RunStatus status={run.status} kind={run.kind} hasChanges={run.has_changes} />
-					{#if run.queue_position}<span class="text-[12px] text-muted">{run.queue_position} run{run.queue_position === 1 ? '' : 's'} ahead in the queue</span>{/if}
+					{#if run.queue_position}<span class="text-xs text-muted">{run.queue_position} run{run.queue_position === 1 ? '' : 's'} ahead in the queue</span>{/if}
 				</div>
-				<h2 class="mt-2 text-[17px] font-semibold tracking-[-0.01em]">
+				<h2 class="mt-2 text-xl font-semibold tracking-[-0.01em]">
 					{#if run.kind === 'cli'}<span class="mono">{run.command}</span>{:else}{run.message || kindLabel[run.kind]}{/if}
 				</h2>
-				<div class="mt-1 flex flex-wrap items-center gap-x-3 text-[12px] text-subtle">
+				<div class="mt-1 flex flex-wrap items-center gap-x-3 text-xs text-subtle">
 					<span class="inline-flex items-center gap-1">{#if run.source === 'terminal'}<SquareTerminal class="size-3" />{/if}{kindLabel[run.kind]}</span>
 					<span>·</span><span title={dateTime(run.created_at)}>Queued {ago(run.created_at)}</span>
 					{#if run.started_at}<span>·</span><span>Duration {duration(run.started_at, run.finished_at ?? (run.status === 'planned' ? run.plan_finished_at : null))}</span>{/if}
@@ -211,11 +221,11 @@
 
 		{#if run.kind === 'cli'}
 			<div class="overflow-hidden rounded-lg border border-border">
-				<div class="flex h-9 items-center justify-between border-b border-white/5 bg-[var(--term-bg)] px-4 text-[12px] text-[#9aa3b5]">
+				<div class="flex h-9 items-center justify-between border-b border-white/5 bg-[var(--term-bg)] px-4 text-xs text-[#9aa3b5]">
 					<span class="inline-flex items-center gap-2"><SquareTerminal class="size-3.5" />Terminal output</span>
 					{#if run.exit_code !== null}<span class="mono {run.exit_code === 0 ? 'text-success' : 'text-danger'}">exit {run.exit_code}</span>{/if}
 				</div>
-				<pre class="max-h-[70vh] overflow-auto bg-[var(--term-bg)] px-4 py-3 font-mono text-[12px] leading-[1.6] text-[#d7dce6]">{@html ansiToHtml(output ?? '')}</pre>
+				<pre class="max-h-[70vh] overflow-auto bg-[var(--term-bg)] px-4 py-3 font-mono text-xs leading-[1.6] text-[#d7dce6]">{@html ansiToHtml(output ?? '')}</pre>
 			</div>
 		{:else}
 			<!-- Timeline -->
@@ -225,33 +235,36 @@
 					{@render dot(planState)}
 					<div class="overflow-hidden rounded-lg border border-border bg-surface">
 						<button class="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-hover" onclick={() => (showPlanLog = !showPlanLog)}>
-							<ChevronRight class="size-3.5 text-subtle transition-transform {showPlanLog ? 'rotate-90' : ''}" />
-							<span class="text-[13px] font-semibold">{run.kind === 'drift' ? 'Drift check' : 'Plan'}</span>
-							<span class="text-[12.5px] text-muted">
+							<ChevronRight class="size-3.5 text-subtle transition-transform duration-(--dur-base) ease-move {showPlanLog ? 'rotate-90' : ''}" />
+							<span class="text-base font-semibold">{run.kind === 'drift' ? 'Drift check' : 'Plan'}</span>
+							<span class="text-sm text-muted">
 								{#if planState === 'pending'}Waiting to start{:else if planState === 'running'}Running…{:else if planState === 'done'}{run.kind === 'drift' ? (run.has_changes ? 'Real infrastructure differs from the state' : 'Infrastructure matches the state') : run.has_changes ? 'Finished with changes' : 'No changes'}{:else if planState === 'canceled'}Canceled{:else}Failed{/if}
 							</span>
 							<span class="ml-auto flex items-center gap-4">
 								{#if run.kind === 'drift' && run.plan_finished_at}
-									<span class="text-[12.5px] font-medium {run.has_changes ? 'text-warning' : 'text-success'}">{run.has_changes ? `${Math.max(run.drift_count, 1)} drifted` : 'No drift'}</span>
+									<span class="text-sm font-medium {run.has_changes ? 'text-warning' : 'text-success'}">{run.has_changes ? `${Math.max(run.drift_count, 1)} drifted` : 'No drift'}</span>
 								{:else if run.plan_finished_at}<ChangeCounts add={run.add_count} change={run.change_count} destroy={run.destroy_count} size="lg" />{/if}
-								{#if run.started_at}<span class="text-[12px] text-subtle">{duration(run.started_at, run.plan_finished_at)}</span>{/if}
+								{#if run.started_at}<span class="text-xs text-subtle">{duration(run.started_at, run.plan_finished_at)}</span>{/if}
 							</span>
 						</button>
 						{#if showPlanLog}
-							<div class="border-t border-border">
+							<div class="border-t border-border" in:reveal out:conceal>
 								{#if plan}
-									<div class="flex gap-4 border-b border-border px-4">
+									<div class="relative flex gap-4 border-b border-border px-4" use:indicator={{ mode: 'underline' }}>
+										<span data-indicator class="pointer-events-none absolute left-0 top-0 rounded-full bg-primary opacity-0"></span>
 										{#each [['changes', 'Changes'], ['log', 'Log']] as [k, l] (k)}
 											<button
-												class="-mb-px border-b-2 py-2 text-[12.5px] font-medium {planTab === k ? 'border-primary text-fg' : 'border-transparent text-muted hover:text-fg'}"
+												data-active={planTab === k}
+												class="py-2 text-sm font-medium {planTab === k ? 'text-fg' : 'text-muted hover:text-fg'}"
 												onclick={() => (planTab = k as typeof planTab)}>{l}</button
 											>
 										{/each}
 									</div>
 								{/if}
+								{#key planTab}<div class="motion-fade">
 								{#if driftPlan && planTab === 'changes'}
 									{#if plan && plan.resource_drift && run.kind !== 'drift'}
-										<div class="flex items-center gap-2 border-b border-border bg-warning-soft px-4 py-2 text-[12.5px] text-warning">
+										<div class="flex items-center gap-2 border-b border-border bg-warning-soft px-4 py-2 text-sm text-warning">
 											<TriangleAlert class="size-3.5" />{plan.resource_drift} resource{plan.resource_drift === 1 ? '' : 's'} changed outside Terraform (drift).
 										</div>
 									{/if}
@@ -259,6 +272,7 @@
 								{:else}
 									<LogView events={planEvents} />
 								{/if}
+								</div>{/key}
 							</div>
 						{/if}
 					</div>
@@ -266,16 +280,16 @@
 
 				<!-- Policy check -->
 				{#if run.policy_status}
-					<li class="relative -ml-px pl-7" data-tour="policy-step">
+					<li class="relative -ml-px pl-7" data-tour="policy-step" in:rise>
 						{@render dot(run.policy_status === 'errored' ? 'failed' : run.policy_status)}
 						<div class="overflow-hidden rounded-lg border border-border bg-surface">
 							<div class="flex items-center gap-3 px-4 py-3">
 								<ShieldCheck class="size-4 text-muted" />
-								<span class="text-[13px] font-semibold">Policy check</span>
-								<span class="inline-flex h-[22px] items-center rounded-full px-2 text-[11.5px] font-medium {toneBg[policyTone[run.policy_status]]}">
+								<span class="text-base font-semibold">Policy check</span>
+								<span class="inline-flex h-[22px] items-center rounded-full px-2 text-2xs font-medium {toneBg[policyTone[run.policy_status]]}">
 									{{ passed: 'Passed', warned: 'Passed with warnings', failed: 'Failed', errored: 'Error' }[run.policy_status]}
 								</span>
-								{#if policy}<span class="ml-auto text-[12px] text-subtle">{policy.sets.length} policy set{policy.sets.length === 1 ? '' : 's'}</span>{/if}
+								{#if policy}<span class="ml-auto text-xs text-subtle">{policy.sets.length} policy set{policy.sets.length === 1 ? '' : 's'}</span>{/if}
 							</div>
 							{#if policy}<div class="border-t border-border"><PolicyResults sets={policy.sets} /></div>{/if}
 						</div>
@@ -284,18 +298,18 @@
 
 				<!-- Apply / confirmation -->
 				{#if applyState !== 'skipped'}
-					<li class="relative -ml-px pl-7" data-tour="apply-step">
+					<li class="relative -ml-px pl-7" data-tour="apply-step" in:rise>
 						{@render dot(applyState)}
 						{#if applyState === 'blocked'}
-							<div class="rounded-lg border border-danger/40 bg-danger-soft px-4 py-3">
-								<div class="text-[13px] font-semibold text-danger">Apply blocked by policy</div>
-								<p class="mt-0.5 text-[12.5px] text-muted">A mandatory policy set failed. Fix the configuration or the policy, then start a new run.</p>
+							<div class="motion-rise rounded-lg border border-danger/40 bg-danger-soft px-4 py-3">
+								<div class="text-base font-semibold text-danger">Apply blocked by policy</div>
+								<p class="mt-0.5 text-sm text-muted">A mandatory policy set failed. Fix the configuration or the policy, then start a new run.</p>
 							</div>
 						{:else if applyState === 'needs'}
-							<div class="overflow-hidden rounded-lg border border-warning/50 bg-surface">
+							<div class="motion-rise overflow-hidden rounded-lg border border-warning/50 bg-surface">
 								<div class="border-b border-border bg-warning-soft px-4 py-3">
-									<div class="text-[13px] font-semibold">Confirm and apply</div>
-									<p class="mt-0.5 text-[12.5px] text-muted">
+									<div class="text-base font-semibold">Confirm and apply</div>
+									<p class="mt-0.5 text-sm text-muted">
 										Review the changes above. Apply runs exactly this plan.
 										{#if run.destroy_count > 0}<b class="text-danger">{run.destroy_count} resource{run.destroy_count === 1 ? '' : 's'} will be destroyed.</b>{/if}
 									</p>
@@ -313,15 +327,15 @@
 						{:else}
 							<div class="overflow-hidden rounded-lg border border-border bg-surface">
 								<button class="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-hover" onclick={() => (showApplyLog = !showApplyLog)}>
-									<ChevronRight class="size-3.5 text-subtle transition-transform {showApplyLog ? 'rotate-90' : ''}" />
-									<span class="text-[13px] font-semibold">Apply</span>
-									<span class="text-[12.5px] text-muted">
+									<ChevronRight class="size-3.5 text-subtle transition-transform duration-(--dur-base) ease-move {showApplyLog ? 'rotate-90' : ''}" />
+									<span class="text-base font-semibold">Apply</span>
+									<span class="text-sm text-muted">
 										{#if applyState === 'pending'}Waiting for plan{:else if applyState === 'running'}Running…{:else if applyState === 'done'}Applied successfully{:else if applyState === 'discarded'}Discarded{:else}Failed{/if}
 									</span>
-									{#if run.confirmed_comment}<span class="ml-auto max-w-[40%] truncate text-[12px] italic text-subtle">“{run.confirmed_comment}”</span>{/if}
+									{#if run.confirmed_comment}<span class="ml-auto max-w-[40%] truncate text-xs italic text-subtle">“{run.confirmed_comment}”</span>{/if}
 								</button>
 								{#if showApplyLog && (applyState === 'running' || applyState === 'done' || applyState === 'errored')}
-									<div class="border-t border-border"><LogView events={applyEvents} /></div>
+									<div class="border-t border-border" in:reveal out:conceal><LogView events={applyEvents} /></div>
 								{/if}
 							</div>
 						{/if}
@@ -332,14 +346,15 @@
 			{#if origins && origins.length}
 				<div class="mt-5 overflow-hidden rounded-lg border border-border bg-surface" data-tour="run-variables">
 					<button class="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-hover" onclick={() => (showVars = !showVars)}>
-						<ChevronRight class="size-3.5 text-subtle transition-transform {showVars ? 'rotate-90' : ''}" />
+						<ChevronRight class="size-3.5 text-subtle transition-transform duration-(--dur-base) ease-move {showVars ? 'rotate-90' : ''}" />
 						<Variable class="size-4 text-muted" />
-						<span class="text-[13px] font-semibold">Variables</span>
-						<span class="text-[12.5px] text-muted">{origins.filter((o) => !o.overridden).length} used · where each value came from</span>
+						<span class="text-base font-semibold">Variables</span>
+						<span class="text-sm text-muted">{origins.filter((o) => !o.overridden).length} used · where each value came from</span>
 					</button>
 					{#if showVars}
-						<table class="w-full border-t border-border text-[12.5px]">
-							<thead class="text-[11px] uppercase tracking-wide text-subtle">
+						<div in:reveal out:conceal>
+						<table class="w-full border-t border-border text-sm">
+							<thead class="text-2xs uppercase tracking-wide text-subtle">
 								<tr class="border-b border-border"><th class="px-4 py-2 text-left font-medium">Key</th><th class="px-4 py-2 text-left font-medium">Type</th><th class="px-4 py-2 text-left font-medium">Source</th><th class="px-4 py-2 text-left font-medium">Result</th></tr>
 							</thead>
 							<tbody class="divide-y divide-border">
@@ -353,18 +368,19 @@
 								{/each}
 							</tbody>
 						</table>
+						</div>
 					{/if}
 				</div>
 			{/if}
 
 			{#if errors.length}
 				<div class="mt-5 rounded-lg border border-danger/40 bg-danger-soft p-4">
-					<div class="mb-2 flex items-center gap-2 text-[13px] font-semibold text-danger"><TriangleAlert class="size-4" />Errors</div>
+					<div class="mb-2 flex items-center gap-2 text-base font-semibold text-danger"><TriangleAlert class="size-4" />Errors</div>
 					{#each errors as e (e.seq)}
 						<div class="mb-2 last:mb-0">
-							<div class="text-[13px] text-fg">{e.data?.diagnostic?.summary ?? e.message}</div>
-							{#if e.data?.diagnostic?.detail}<div class="mt-0.5 whitespace-pre-wrap text-[12.5px] text-muted">{e.data.diagnostic.detail}</div>{/if}
-							{#if e.data?.diagnostic?.range}<div class="mono mt-0.5 text-[11.5px] text-subtle">{e.data.diagnostic.range.filename}:{e.data.diagnostic.range.start.line}</div>{/if}
+							<div class="text-base text-fg">{e.data?.diagnostic?.summary ?? e.message}</div>
+							{#if e.data?.diagnostic?.detail}<div class="mt-0.5 whitespace-pre-wrap text-sm text-muted">{e.data.diagnostic.detail}</div>{/if}
+							{#if e.data?.diagnostic?.range}<div class="mono mt-0.5 text-2xs text-subtle">{e.data.diagnostic.range.filename}:{e.data.diagnostic.range.start.line}</div>{/if}
 						</div>
 					{/each}
 				</div>

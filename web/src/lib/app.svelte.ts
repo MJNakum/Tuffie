@@ -17,8 +17,16 @@ class AppState {
 	}
 
 	toggleTheme() {
-		this.theme = this.theme === 'dark' ? 'light' : 'dark';
-		document.documentElement.dataset.theme = this.theme;
+		const apply = () => {
+			this.theme = this.theme === 'dark' ? 'light' : 'dark';
+			document.documentElement.dataset.theme = this.theme;
+		};
+		// Cross-fade the whole page instead of flashing to the new colors.
+		const root = document.documentElement;
+		if (document.startViewTransition && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+			root.classList.add('vt-theme');
+			document.startViewTransition(apply).finished.finally(() => root.classList.remove('vt-theme'));
+		} else apply();
 		try {
 			localStorage.setItem('tuffie-theme', this.theme);
 		} catch {

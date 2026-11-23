@@ -108,6 +108,70 @@
 	--font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
 	--font-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
 	--shadow-pop: var(--shadow);
+
+	/* ---------- Type scale ----------
+	 * One scale for the whole UI. Dense, like a developer tool, but every
+	 * step is a clear jump so hierarchy reads at a glance. */
+	--text-2xs: 11px;
+	--text-2xs--line-height: 1.45;
+	--text-xs: 12px;
+	--text-xs--line-height: 1.5;
+	--text-sm: 12.5px;
+	--text-sm--line-height: 1.5;
+	--text-base: 13px;
+	--text-base--line-height: 1.5;
+	--text-md: 14px;
+	--text-md--line-height: 1.55;
+	--text-lg: 15px;
+	--text-lg--line-height: 1.4;
+	--text-xl: 17px;
+	--text-xl--line-height: 1.35;
+	--text-2xl: 20px;
+	--text-2xl--line-height: 1.25;
+	--text-3xl: 28px;
+	--text-3xl--line-height: 1.15;
+
+	/* ---------- Motion ----------
+	 * "Productive" motion (after IBM Carbon): fast and quiet, so it helps
+	 * people follow a change without slowing them down.
+	 *  - enter: decelerate into place (things arrive and settle)
+	 *  - exit:  accelerate away, about 30% faster than enter
+	 *  - move:  for things that change size or position on screen
+	 * Durations grow with the distance and size of what moves. */
+	--ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+	--ease-exit: cubic-bezier(0.4, 0, 1, 1);
+	--ease-move: cubic-bezier(0.2, 0, 0, 1);
+}
+
+:root {
+	--dur-press: 90ms; /* button press, checkbox tick */
+	--dur-fast: 140ms; /* hover, color, focus ring */
+	--dur-base: 200ms; /* menus, tooltips, tab indicator, small reveals */
+	--dur-slow: 260ms; /* dialogs, drawers, collapsible panels */
+	--dur-page: 280ms; /* page and view changes */
+	--dur-exit-ratio: 0.7;
+}
+
+/* People who ask the OS for less motion get instant changes and only
+ * short fades. Nothing slides, scales or moves. */
+@media (prefers-reduced-motion: reduce) {
+	:root {
+		--dur-press: 0ms;
+		--dur-fast: 0ms;
+		--dur-base: 1ms;
+		--dur-slow: 1ms;
+		--dur-page: 1ms;
+	}
+	*,
+	*::before,
+	*::after {
+		animation-duration: 1ms !important;
+		animation-iteration-count: 1 !important;
+		scroll-behavior: auto !important;
+	}
+	.pulse-dot {
+		animation: none !important;
+	}
 }
 
 @layer base {
@@ -153,6 +217,48 @@
 	}
 	::-webkit-scrollbar-track {
 		background: transparent;
+	}
+}
+
+/* Every interactive element changes state smoothly by default: color,
+ * background, border, shadow and opacity. Layout never animates here. */
+@layer base {
+	a,
+	button,
+	input,
+	select,
+	textarea,
+	summary,
+	tr,
+	[role='button'],
+	[role='menuitem'],
+	[role='tab'],
+	[role='switch'] {
+		transition-property: color, background-color, border-color, outline-color, text-decoration-color, box-shadow, opacity, transform,
+			translate, scale;
+		transition-duration: var(--dur-fast);
+		transition-timing-function: var(--ease-move);
+	}
+	:focus-visible {
+		transition: outline-offset var(--dur-fast) var(--ease-enter);
+	}
+	html {
+		scroll-behavior: smooth;
+	}
+}
+
+/* A scroll area that never shifts sideways when its content grows. */
+@utility scroll-area {
+	overflow: auto;
+	scrollbar-gutter: stable;
+	overscroll-behavior: contain;
+}
+
+/* Press feedback: a small, quick scale. */
+@utility pressable {
+	&:active:not(:disabled) {
+		scale: 0.97;
+		transition-duration: var(--dur-press);
 	}
 }
 
@@ -412,4 +518,142 @@
 	background: var(--surface) !important;
 	border-color: var(--border-strong) !important;
 	color: var(--fg) !important;
+}
+
+/* ---------- Motion keyframes ---------- */
+@keyframes fade-in {
+	from {
+		opacity: 0;
+	}
+}
+@keyframes fade-out {
+	to {
+		opacity: 0;
+	}
+}
+@keyframes pop-in {
+	from {
+		opacity: 0;
+		transform: translateY(6px) scale(0.98);
+	}
+}
+@keyframes pop-out {
+	to {
+		opacity: 0;
+		transform: translateY(4px) scale(0.985);
+	}
+}
+@keyframes menu-in {
+	from {
+		opacity: 0;
+		transform: scale(0.96);
+	}
+}
+@keyframes menu-out {
+	to {
+		opacity: 0;
+		transform: scale(0.97);
+	}
+}
+@keyframes rise-in {
+	from {
+		opacity: 0;
+		transform: translateY(4px);
+	}
+}
+@keyframes shimmer {
+	from {
+		background-position: 200% 0;
+	}
+	to {
+		background-position: -200% 0;
+	}
+}
+
+/* Overlays. Bits UI sets data-state and waits for the exit animation. */
+.motion-overlay[data-state='open'] {
+	animation: fade-in var(--dur-slow) var(--ease-enter) both;
+}
+.motion-overlay[data-state='closed'] {
+	animation: fade-out calc(var(--dur-slow) * var(--dur-exit-ratio)) var(--ease-exit) both;
+}
+.motion-dialog[data-state='open'] {
+	animation: pop-in var(--dur-slow) var(--ease-enter) both;
+}
+.motion-dialog[data-state='closed'] {
+	animation: pop-out calc(var(--dur-slow) * var(--dur-exit-ratio)) var(--ease-exit) both;
+}
+.motion-menu {
+	transform-origin: var(--bits-floating-transform-origin, top);
+}
+.motion-menu[data-state='open'] {
+	animation: menu-in var(--dur-base) var(--ease-enter) both;
+}
+.motion-menu[data-state='closed'] {
+	animation: menu-out calc(var(--dur-base) * var(--dur-exit-ratio)) var(--ease-exit) both;
+}
+
+/* Content that arrives after loading fades in instead of popping. */
+.motion-rise {
+	animation: rise-in var(--dur-slow) var(--ease-enter) both;
+}
+.motion-fade {
+	animation: fade-in var(--dur-base) var(--ease-enter) both;
+}
+
+/* Skeleton placeholders keep the final layout while data loads. */
+.skeleton {
+	border-radius: 5px;
+	background: linear-gradient(90deg, var(--surface-2) 25%, var(--surface-3) 50%, var(--surface-2) 75%);
+	background-size: 200% 100%;
+	animation: shimmer 1.6s linear infinite;
+}
+
+/* ---------- Page transitions (View Transitions API) ----------
+ * The main area cross-fades with a short rise. The sidebar never moves.
+ * Inside a workspace, the header and the terminal stay still while the
+ * tab content changes. */
+::view-transition-old(root),
+::view-transition-new(root) {
+	animation: none;
+}
+::view-transition-old(main) {
+	animation: fade-out calc(var(--dur-page) * 0.55) var(--ease-exit) both;
+}
+::view-transition-new(main) {
+	animation: rise-in var(--dur-page) var(--ease-enter) both;
+	animation-delay: calc(var(--dur-page) * 0.15);
+}
+::view-transition-old(ws-head),
+::view-transition-old(ws-term) {
+	animation: none;
+	opacity: 0;
+}
+::view-transition-new(ws-head),
+::view-transition-new(ws-term) {
+	animation: none;
+}
+::view-transition-new(ws-head):only-child,
+::view-transition-new(ws-term):only-child {
+	animation: fade-in var(--dur-page) var(--ease-enter) both;
+}
+::view-transition-old(ws-head):only-child,
+::view-transition-old(ws-term):only-child {
+	animation: fade-out calc(var(--dur-page) * 0.55) var(--ease-exit) both;
+	opacity: 1;
+}
+
+/* Theme switch: one calm cross-fade of the whole page. */
+html.vt-theme::view-transition-old(*),
+html.vt-theme::view-transition-new(*) {
+	animation-duration: var(--dur-slow);
+	animation-timing-function: var(--ease-move);
+	animation-delay: 0s;
+}
+html.vt-theme::view-transition-old(*) {
+	animation-name: fade-out;
+	opacity: 1;
+}
+html.vt-theme::view-transition-new(*) {
+	animation-name: fade-in;
 }

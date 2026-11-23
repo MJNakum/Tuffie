@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ListSkeleton from '#lib/components/ui/ListSkeleton.svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { toast } from 'svelte-sonner';
@@ -60,17 +61,17 @@
 
 <div class="min-h-0 flex-1 overflow-auto px-8 py-6">
 	{#if !set}
-		<div class="grid place-items-center py-16"><Spinner /></div>
+		<ListSkeleton rows={4} />
 	{:else}
-		<div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
+		<div class="motion-rise grid gap-5 xl:grid-cols-[minmax(0,1fr)_400px]">
 			<div class="min-w-0"><VariableEditor variables={set.variables} create={(b) => api.createSetVariable(id, b)} reload={load} /></div>
 			<form class="h-fit overflow-hidden rounded-lg border border-border bg-surface" onsubmit={(e) => (e.preventDefault(), save())}>
-				<header class="border-b border-border px-4 py-3"><h3 class="text-[13px] font-semibold">Details and scope</h3></header>
+				<header class="border-b border-border px-4 py-3"><h3 class="text-base font-semibold">Details and scope</h3></header>
 				<div class="flex flex-col gap-4 p-4">
 					<Field label="Name" for="n"><Input id="n" bind:value={f.name} /></Field>
 					<Field label="Description" for="d"><Textarea id="d" bind:value={f.description} class="min-h-14" /></Field>
 					<ScopePicker bind:global={f.global} bind:selected={f.workspace_ids} />
-					<p class="text-[12px] text-subtle">Precedence: global sets, then assigned sets (each by name), then workspace variables. The last one wins.</p>
+					<p class="text-xs text-subtle">Precedence: global sets, then assigned sets (each by name), then workspace variables. The last one wins.</p>
 				</div>
 				<footer class="flex justify-end border-t border-border bg-surface-2 px-4 py-3"><Button variant="primary" type="submit" loading={saving}>Save</Button></footer>
 			</form>

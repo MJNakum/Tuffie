@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { RunEvent } from '#lib/types';
 	import { tick } from 'svelte';
+	import { fadeIn } from '#lib/motion';
 
 	let { events, follow = true, maxHeight = '520px' }: { events: RunEvent[]; follow?: boolean; maxHeight?: string } = $props();
 	let el: HTMLDivElement | undefined = $state();
@@ -8,7 +9,8 @@
 
 	$effect(() => {
 		events.length;
-		if (follow && stick && el) tick().then(() => el && (el.scrollTop = el.scrollHeight));
+		// Follow new lines with a smooth scroll, unless the person scrolled up.
+		if (follow && stick && el) tick().then(() => el?.scrollTo({ top: el.scrollHeight, behavior: 'smooth' }));
 	});
 
 	function onScroll() {
@@ -23,11 +25,11 @@
 <div
 	bind:this={el}
 	onscroll={onScroll}
-	class="overflow-auto bg-[var(--term-bg)] py-2 font-mono text-[12px] leading-[1.65]"
+	class="overflow-auto bg-[var(--term-bg)] py-2 font-mono text-xs leading-[1.65]"
 	style="max-height: {maxHeight}"
 >
 	{#each events.filter((e) => e.type !== 'status') as e (e.seq)}
-		<div class="group flex gap-3 px-4 hover:bg-white/[0.03]">
+		<div class="group flex gap-3 px-4 hover:bg-white/[0.03]" in:fadeIn={{ duration: 160 }}>
 			<span class="w-16 shrink-0 select-none text-[#4b5263] tabular">{time(e.ts)}</span>
 			<span class="min-w-0 flex-1 whitespace-pre-wrap break-words {tone(e)}">{e.message}{#if e.type === 'diagnostic' && e.data?.diagnostic?.detail}
 					<span class="block text-[#8a93a6]">{e.data.diagnostic.detail}</span>{/if}</span>

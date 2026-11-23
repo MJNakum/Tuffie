@@ -52,14 +52,14 @@
 {/snippet}
 
 {#if variant === 'badge'}
-	<span class="inline-flex h-[22px] items-center gap-1.5 rounded-full pl-1.5 pr-2 text-[11.5px] font-medium {toneBg[info.tone]}">
+	<span class="inline-flex h-[22px] items-center gap-1.5 rounded-full pl-1.5 pr-2 text-2xs font-medium transition-colors duration-(--dur-slow) {toneBg[info.tone]}">
 		{@render glyph('size-3.5')}
 		{info.label}
 	</span>
 {:else if variant === 'icon'}
-	<span class={toneText[info.tone]} title={info.label}>{@render glyph('size-4')}</span>
+	<span class="transition-colors duration-(--dur-slow) {toneText[info.tone]}" title={info.label}>{@render glyph('size-4')}</span>
 {:else}
-	<span class="inline-flex items-center gap-1.5 text-[12.5px] font-medium {toneText[info.tone]}">
+	<span class="inline-flex items-center gap-1.5 text-sm font-medium {toneText[info.tone]}">
 		{@render glyph('size-3.5')}
 		{info.label}
 	</span>

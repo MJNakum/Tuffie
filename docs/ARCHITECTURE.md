@@ -256,6 +256,75 @@ The UI uses one accent colour (signal blue) on graphite surfaces. The tokens are
 | `--danger` | `#f0524f` | `#d22d2a` | Destroy, errors |
 | `--violet` | `#a585ff` | `#6d48e0` | Replace, data sources |
 
+### Type scale
+
+One scale for the whole UI (`--text-*` in `app.css`, used as `text-xs`, `text-base` …). Do not use arbitrary sizes.
+
+| Token | Size | Use |
+|---|---|---|
+| `2xs` | 11 px | Uppercase labels, badges, key caps |
+| `xs` | 12 px | Meta text, hints, timestamps |
+| `sm` | 12.5 px | Table cells, secondary text |
+| `base` | 13 px | Body text and controls |
+| `md` | 14 px | Emphasized body, resource titles |
+| `lg` | 15 px | Dialog and card titles |
+| `xl` | 17 px | Run titles |
+| `2xl` | 20 px | Page titles |
+| `3xl` | 28 px | Large numbers |
+
+### Sizes and radii
+
+| Element | Size | Radius |
+|---|---|---|
+| Button `sm` / `md` / `lg` | 28 / 32 / 36 px high | 6 px |
+| Icon button `icon-sm` / `icon` | 28 / 32 px square | 6 px |
+| Input, select | 32 px high | 6 px |
+| Card, table, panel | — | 8 px |
+| Dialog, popover | — | 12 px / 8 px |
+| Status pill | 22 px high | full |
+| Tag badge | 20 px high | 4 px |
+
+Use `lg` buttons only for the main call to action on an empty page.
+
+### Motion
+
+Tuffie uses "productive" motion (after [IBM Carbon](https://carbondesignsystem.com/elements/motion/overview/)): fast and quiet, so it helps people follow a change and never makes them wait.
+
+| Token | Value | Use |
+|---|---|---|
+| `--dur-press` | 90 ms | Button press scale |
+| `--dur-fast` | 140 ms | Hover, color, focus ring |
+| `--dur-base` | 200 ms | Menus, tab and nav indicators, small reveals |
+| `--dur-slow` | 260 ms | Dialogs, drawers, collapsible panels |
+| `--dur-page` | 280 ms | Page changes |
+| `--ease-enter` | `cubic-bezier(0.16, 1, 0.3, 1)` | Things that arrive: decelerate into place |
+| `--ease-exit` | `cubic-bezier(0.4, 0, 1, 1)` | Things that leave: accelerate away, 30% faster |
+| `--ease-move` | `cubic-bezier(0.2, 0, 0, 1)` | Things that change size or position |
+
+Patterns:
+
+| Pattern | How | Where |
+|---|---|---|
+| State change | Global `transition` on interactive elements (color, background, border, shadow, opacity) | Every button, link, input, row |
+| Press | `pressable`: scale 0.97 | Buttons, nav items |
+| Dialog | `motion-overlay` + `motion-dialog`: fade, rise 6 px, scale 0.98 | `ui/Dialog.svelte` |
+| Menu | `motion-menu`: fade and scale from the trigger | `ui/Menu.svelte` |
+| Sliding indicator | `use:indicator` + `<span data-indicator>` | Sidebar, workspace tabs, segmented controls, docs nav |
+| Expand / collapse | `in:reveal out:conceal` (height + opacity) | Plan rows, run panels, file tree, scope picker |
+| List changes | `animate:flip in:rise out:vanish` | Runs, workspaces, variables, plan changes |
+| Loading | Skeletons with the final layout, then `motion-rise` | Every page |
+| Page change | View Transitions API: main area fades and rises; workspace header and terminal stay still | `routes/+layout.svelte` |
+| Drawer | Height transition with fixed-height content | Terminal |
+| Theme switch | One cross-fade of the page | `app.svelte.ts` |
+
+Rules:
+
+- Animate only `opacity` and `transform` (and height for reveals). Never animate layout on hover.
+- No layout shift on load: a placeholder must have the same size as the content that replaces it. Check with the browser's Cumulative Layout Shift score.
+- A button keeps its width while it shows a spinner.
+- With `prefers-reduced-motion`, durations drop to near zero, nothing slides or scales, and page transitions are off.
+- Motion never carries meaning alone. Every state also has a color, an icon or a label.
+
 Rules:
 
 - Do not use pure black. Near-black with a cool tint reduces eye strain in long sessions.

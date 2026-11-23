@@ -1,6 +1,8 @@
 <script lang="ts">
 	import '../app.css';
 	import { page } from '$app/state';
+	import { onNavigate } from '$app/navigation';
+	import { indicator } from '#lib/motion';
 	import { onMount } from 'svelte';
 	import { Toaster } from 'svelte-sonner';
 	import { Tooltip } from 'bits-ui';
@@ -24,6 +26,21 @@
 
 	let { children } = $props();
 	onMount(() => app.load());
+
+	// Page changes use the View Transitions API where the browser has it:
+	// the main area cross-fades and rises a little; the sidebar stays still.
+	// Same-page changes (hash, query) and reduced motion skip it.
+	onNavigate((nav) => {
+		if (!document.startViewTransition) return;
+		if (nav.from?.url.pathname === nav.to?.url.pathname) return;
+		if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+		return new Promise((resolve) => {
+			document.startViewTransition(async () => {
+				resolve();
+				await nav.complete;
+			});
+		});
+	});
 
 	let helpOpen = $state(false);
 	const contextTour = $derived(tourForPath(page.url.pathname));
@@ -63,24 +80,27 @@
 	<div class="flex h-screen overflow-hidden">
 		<aside class="flex w-[220px] shrink-0 flex-col border-r border-border bg-surface">
 			<div class="flex h-13 items-center px-4"><a href="/"><Logo /></a></div>
-			<nav class="flex flex-col gap-0.5 px-2 pt-2">
+			<nav class="relative mx-2 mt-2 flex flex-col gap-0.5" use:indicator>
+				<!-- The highlight slides to the active item. -->
+				<span data-indicator class="pointer-events-none absolute left-0 top-0 rounded-md bg-surface-3 opacity-0"></span>
 				{#each nav as n (n.href)}
 					{@const active = n.match(page.url.pathname)}
 					<a
 						href={n.href}
 						data-tour={n.tour}
-						class="flex h-8 items-center gap-2.5 rounded-md px-2.5 text-[13px] font-medium transition-colors {active
-							? 'bg-surface-3 text-fg'
+						data-active={active}
+						class="pressable relative z-10 flex h-8 items-center gap-2.5 rounded-md px-2.5 text-base font-medium {active
+							? 'text-fg'
 							: 'text-muted hover:bg-hover hover:text-fg'}"
 					>
-						<n.icon class="size-4 {active ? 'text-primary-text' : ''}" />
+						<n.icon class="size-4 transition-colors duration-(--dur-base) {active ? 'text-primary-text' : ''}" />
 						{n.label}
 					</a>
 				{/each}
 			</nav>
 			<div class="mt-auto flex flex-col gap-2 border-t border-border p-3">
 				<div class="flex items-center justify-between">
-					<span class="inline-flex items-center gap-1.5 text-[12px] text-muted" data-tour="mode">
+					<span class="inline-flex items-center gap-1.5 text-xs text-muted" data-tour="mode">
 						<span class="size-1.5 rounded-full {app.system ? 'bg-success' : 'bg-danger'}"></span>
 						{app.system ? (app.system.mode === 'local' ? 'Local mode' : 'Server mode') : 'Offline'}
 					</span>
@@ -104,10 +124,11 @@
 						</button>
 					</div>
 				</div>
-				{#if app.system}<span class="text-[11px] text-subtle">v{app.system.version}</span>{/if}
+				<!-- Always takes one line, so the footer does not grow when data arrives. -->
+				<span class="h-4 text-2xs text-subtle">{#if app.system}<span class="motion-fade">v{app.system.version}</span>{/if}</span>
 			</div>
 		</aside>
-		<main class="flex min-w-0 flex-1 flex-col overflow-hidden">
+		<main class="flex min-w-0 flex-1 flex-col overflow-hidden" style="view-transition-name: main">
 			{@render children()}
 		</main>
 	</div>
@@ -115,5 +136,5 @@
 <Toaster
 	theme={app.theme}
 	position="bottom-right"
-	toastOptions={{ class: '!bg-surface-2 !border-border-strong !text-fg !text-[13px] !font-sans' }}
+	toastOptions={{ class: '!bg-surface-2 !border-border-strong !text-fg !text-base !font-sans' }}
 />

@@ -66,7 +66,7 @@
 <div class="min-h-0 flex-1 overflow-auto px-8 py-6">
 	<form onsubmit={submit} class="mx-auto flex max-w-2xl flex-col gap-6">
 		<section class="rounded-lg border border-border bg-surface">
-			<header class="border-b border-border px-5 py-3"><h2 class="text-[13px] font-semibold">1. Source</h2></header>
+			<header class="border-b border-border px-5 py-3"><h2 class="text-base font-semibold">1. Source</h2></header>
 			<div class="flex flex-col gap-4 p-5">
 				<div class="grid grid-cols-2 gap-3">
 					{#each [{ k: 'local', icon: Folder, t: 'Local folder', d: 'A folder on this machine. Tuffie edits files in place.' }, { k: 'git', icon: GitBranch, t: 'Git repository', d: 'Tuffie clones the repo and syncs it on demand.' }] as o (o.k)}
@@ -79,13 +79,14 @@
 						>
 							<o.icon class="mt-0.5 size-4 {source === o.k ? 'text-primary-text' : 'text-muted'}" />
 							<div>
-								<div class="text-[13px] font-medium">{o.t}</div>
-								<div class="mt-0.5 text-[12px] text-muted">{o.d}</div>
+								<div class="text-base font-medium">{o.t}</div>
+								<div class="mt-0.5 text-xs text-muted">{o.d}</div>
 							</div>
 							{#if source === o.k}<Check class="absolute right-3 top-3 size-3.5 text-primary-text" />{/if}
 						</button>
 					{/each}
 				</div>
+				{#key source}<div class="motion-rise flex flex-col gap-4">
 				{#if source === 'local'}
 					<Field label="Folder path" for="path" hint="Absolute path to the folder with your .tf files.">
 						<Input id="path" bind:value={localPath} placeholder="/home/you/infra/networking" mono required />
@@ -98,6 +99,7 @@
 						<Input id="ref" bind:value={gitRef} placeholder="main" mono />
 					</Field>
 				{/if}
+				</div>{/key}
 				<Field label="Working directory" for="wd" hint="Optional. Sub-folder that holds the configuration, for example envs/prod.">
 					<Input id="wd" bind:value={workingDir} placeholder="." mono />
 				</Field>
@@ -105,7 +107,7 @@
 		</section>
 
 		<section class="rounded-lg border border-border bg-surface">
-			<header class="border-b border-border px-5 py-3"><h2 class="text-[13px] font-semibold">2. Details</h2></header>
+			<header class="border-b border-border px-5 py-3"><h2 class="text-base font-semibold">2. Details</h2></header>
 			<div class="flex flex-col gap-4 p-5">
 				<Field label="Name" for="name" error={name && !nameOk ? 'Use letters, numbers, - and _ only.' : undefined} hint="Letters, numbers, - and _. For example networking-prod.">
 					<Input id="name" bind:value={name} placeholder="networking-prod" required />
@@ -117,10 +119,10 @@
 		</section>
 
 		<section class="rounded-lg border border-border bg-surface">
-			<header class="border-b border-border px-5 py-3"><h2 class="text-[13px] font-semibold">3. Execution</h2></header>
+			<header class="border-b border-border px-5 py-3"><h2 class="text-base font-semibold">3. Execution</h2></header>
 			<div class="flex flex-col gap-4 p-5">
 				<div class="flex flex-col gap-1.5">
-					<span class="text-[12.5px] font-medium">Tool</span>
+					<span class="text-sm font-medium">Tool</span>
 					<div class="grid grid-cols-2 gap-3">
 						{#each ['terraform', 'tofu'] as t (t)}
 							{@const info = tools.find((x) => x.name === t)}
@@ -132,8 +134,8 @@
 									: 'border-border-strong hover:bg-hover'}"
 							>
 								<div>
-									<div class="text-[13px] font-medium">{t === 'tofu' ? 'OpenTofu' : 'Terraform'}</div>
-									<div class="mono text-[11.5px] {info?.path ? 'text-muted' : 'text-subtle'}">
+									<div class="text-base font-medium">{t === 'tofu' ? 'OpenTofu' : 'Terraform'}</div>
+									<div class="mono text-2xs {info?.path ? 'text-muted' : 'text-subtle'}">
 										{info?.path ? `v${info.version ?? '?'} · ${info.path}` : 'not found on PATH'}
 									</div>
 								</div>
@@ -142,7 +144,7 @@
 						{/each}
 					</div>
 					{#if !tools.find((x) => x.name === tool)?.path}
-						<p class="mt-1 flex items-center gap-1.5 text-[12px] text-warning">
+						<p class="mt-1 flex items-center gap-1.5 text-xs text-warning">
 							<TriangleAlert class="size-3.5" />{tool} is not on PATH. Set the binary path below.
 						</p>
 					{/if}
@@ -152,15 +154,15 @@
 				</Field>
 				<label class="flex items-start justify-between gap-6 rounded-lg border border-border-strong px-3.5 py-3">
 					<div>
-						<div class="text-[13px] font-medium">Auto-apply</div>
-						<div class="text-[12px] text-muted">Apply a successful plan without asking for confirmation. Keep this off for production.</div>
+						<div class="text-base font-medium">Auto-apply</div>
+						<div class="text-xs text-muted">Apply a successful plan without asking for confirmation. Keep this off for production.</div>
 					</div>
 					<Switch bind:checked={autoApply} />
 				</label>
 			</div>
 		</section>
 
-		{#if error}<div class="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-[13px] text-danger">{error}</div>{/if}
+		{#if error}<div class="rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-base text-danger">{error}</div>{/if}
 
 		<div class="flex justify-end gap-2 pb-10">
 			<Button href="/">Cancel</Button>
