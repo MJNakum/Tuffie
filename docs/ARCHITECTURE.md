@@ -43,6 +43,8 @@ flowchart LR
 | `src/terminal.rs` | Terminal WebSocket: command parsing, PTY, run recording. |
 | `src/exec.rs` | Tool lookup, working folder, environment, secret redaction. |
 | `src/crypto.rs` | Encryption at rest. |
+| `src/policy.rs` | Rego policy evaluation (regorus, in-process). |
+| `src/api/assign.rs` | Global / per-workspace assignment for variable and policy sets. |
 | `src/security.rs` | Host and Origin checks, security headers. |
 | `src/git.rs` | Clone and sync Git sources with the system `git`. |
 | `src/assets.rs` | Serves the embedded UI (`web/build`). |
@@ -57,8 +59,9 @@ stateDiagram-v2
   [*] --> pending: Start run
   pending --> planning: lock taken
   pending --> canceled: cancel
-  planning --> planned_and_finished: no changes, or plan only
-  planning --> planned: changes found
+  planning --> planned_and_finished: no changes, plan only, or drift check
+  planning --> policy_failed: mandatory policy failed
+  planning --> planned: changes found, policies passed
   planning --> errored
   planning --> canceled: cancel (SIGINT)
   planned --> applying: confirm (or auto-apply)
@@ -69,6 +72,7 @@ stateDiagram-v2
   applied --> [*]
   discarded --> [*]
   errored --> [*]
+  policy_failed --> [*]
   canceled --> [*]
 ```
 
@@ -79,10 +83,11 @@ Steps of one run:
 3. `init -input=false` runs every time. A shared plugin cache (`TF_PLUGIN_CACHE_DIR`) keeps it fast.
 4. `plan -json -detailed-exitcode -out=plan.tfplan` runs. Exit code `2` means changes. Tuffie reads each JSON line and writes it as a run event. `change_summary` sets the add/change/destroy counts.
 5. `show -json plan.tfplan` exports the structured plan. Tuffie encrypts it to `plan.json.enc`.
-6. With changes, the run becomes `planned` and **keeps the lock**. Nothing else can change the state before the apply.
-7. On confirm, `apply -json plan.tfplan` runs the exact plan that was reviewed.
-8. After apply, `state pull` saves an encrypted state snapshot. This gives state history with any backend.
-9. The lock is released and `kick()` starts the next pending run.
+6. Policy check: every policy set that applies to the workspace is evaluated against the plan JSON. If a *mandatory* set fails, the run ends as `policy_failed`, the binary plan is deleted and the lock is released. Drift checks skip this step.
+7. With changes, the run becomes `planned` and **keeps the lock**. Nothing else can change the state before the apply.
+8. On confirm, `apply -json plan.tfplan` runs the exact plan that was reviewed.
+9. After apply, `state pull` saves an encrypted state snapshot. This gives state history with any backend.
+10. The lock is released and `kick()` starts the next pending run.
 
 On start, runs that were active when Tuffie stopped are marked `errored`, and their locks are released.
 
@@ -95,6 +100,40 @@ Each run has `runs/<id>/events.jsonl`. A line is:
 ```
 
 The `/api/runs/{id}/stream` WebSocket subscribes to the live channel first, then sends the file, then the live events. It drops duplicates by `seq`, so no event is lost or repeated.
+
+## Variables and variable sets
+
+Precedence, lowest first (the last one wins):
+
+1. The Tuffie process environment (all of it in local mode, an allow-list in server mode).
+2. Global variable sets, sorted by name.
+3. Variable sets assigned to the workspace, sorted by name.
+4. The workspace's own variables.
+
+Each run writes `variables.json`: every key, its source, and whether a later source overrode it. It never holds values. The run page shows it as a table.
+
+## Policy checks
+
+Tuffie evaluates Rego with [regorus](https://github.com/microsoft/regorus), a Rust implementation of the OPA language. There is no `opa` binary and no network access from policies (the `http` builtins are not compiled in). Each evaluation has a 10-second limit.
+
+- Input: the plan JSON from `terraform show -json` (`input.resource_changes`, `input.resource_drift`, `input.configuration`, …).
+- Rules named `deny` or `violation` are failures. Rules named `warn` are warnings. Any package can define them.
+- A rule value is a set of strings, or of objects with a `msg` field. Other fields show as details.
+- Rego v1 syntax is preferred. Rego v0 syntax (`deny[msg] { … }`) is accepted as a fallback, so most Conftest policies work unchanged.
+- Policies are compiled when you save them, so a syntax error is shown at once.
+
+| Enforcement | A failing `deny` … |
+|---|---|
+| advisory | shows as a warning. Apply is allowed. |
+| mandatory | blocks the apply. The run ends as `policy_failed`. |
+
+A policy set either stores policies in Tuffie (with a Rego editor), or reads `*.rego` files from a folder (for example a Git checkout). Files that end in `_test.rego` are skipped.
+
+## Drift detection
+
+A drift check is a run of kind `drift`: `plan -refresh-only`, never applied, no policy check. Exit code 2 means the real infrastructure differs from the state. The workspace stores the result (`drift_status`, `drift_count`, `drift_checked_at`, `drift_run_id`).
+
+A scheduler task wakes every 30 seconds. It starts a check for each workspace whose interval has passed, but only when the workspace has no queued, active or unconfirmed run. A successful apply marks a drifted workspace as `ok`, because the apply refreshed the state.
 
 ## Terminal
 
@@ -150,6 +189,8 @@ Protocol: see the comment at the top of `src/terminal.rs`.
     plan.json.enc      encrypted structured plan
     state.json.enc     encrypted state snapshot after apply
     output.log         terminal output (CLI runs)
+    policy.json        policy check results (messages only, redacted)
+    variables.json     variable origins (keys and sources, no values)
 ```
 
 ## API
@@ -179,6 +220,18 @@ All paths start with `/api`.
 | GET | `/workspaces/{id}/state` | Current state (`show -json`), masked. |
 | GET | `/workspaces/{id}/state-versions` | Saved snapshots. |
 | WS | `/workspaces/{id}/terminal` | Terminal. |
+| POST | `/workspaces/{id}/drift` | Start a drift check now. |
+| GET | `/workspaces/{id}/variable-sets` | Sets that apply, in precedence order. |
+| GET, POST | `/variable-sets` | List, create (`global`, `workspace_ids`). |
+| GET, PATCH, DELETE | `/variable-sets/{id}` | Read, update, delete. |
+| POST | `/variable-sets/{id}/variables` | Add a variable to a set. |
+| GET, POST | `/policy-sets` | List, create. |
+| GET, PATCH, DELETE | `/policy-sets/{id}` | Read, update, delete. |
+| POST | `/policy-sets/{id}/policies` | Add a policy (compiled first). |
+| PATCH, DELETE | `/policies/{id}` | Update, delete a policy. |
+| POST | `/policy-sets/{id}/test` | Evaluate against a run's saved plan. Body: `{"run_id": "…"}`. |
+| GET | `/runs/{id}/policy` | Policy results of a run. |
+| GET | `/runs/{id}/variables` | Variable origins of a run. |
 
 ## Design system
 

@@ -40,7 +40,7 @@ pub async fn create(State(state): State<AppState>, Path(id): Path<String>, Json(
     let ws = get_workspace(&state, &id).await?;
     let kind = RunKind::parse(&req.kind).filter(|k| *k != RunKind::Cli).ok_or_else(|| bad("unknown run kind"))?;
     let message = if req.message.trim().is_empty() { "Triggered from the UI".to_string() } else { req.message };
-    let run = runner::create_run(&state, &ws, kind, message).await?;
+    let run = runner::create_run(&state, &ws, kind, message, "ui").await?;
     Ok((StatusCode::CREATED, Json(run)))
 }
 
@@ -171,6 +171,18 @@ pub async fn plan(State(state): State<AppState>, Path(id): Path<String>) -> ApiR
         "resource_changes": changes,
         "output_changes": outputs,
         "resource_drift": plan["resource_drift"].as_array().map(|a| a.len()).unwrap_or(0),
+        "drift": plan["resource_drift"].as_array().map(|a| a.iter().map(|rc| {
+            let c = &rc["change"];
+            json!({
+                "address": rc["address"],
+                "type": rc["type"],
+                "mode": rc["mode"],
+                "provider_name": rc["provider_name"],
+                "actions": c["actions"],
+                "before": super::mask_sensitive(&c["before"], Some(&c["before_sensitive"])),
+                "after": super::mask_sensitive(&c["after"], Some(&c["after_sensitive"])),
+            })
+        }).collect::<Vec<_>>()).unwrap_or_default(),
     })))
 }
 
@@ -202,4 +214,22 @@ pub async fn output(State(state): State<AppState>, Path(id): Path<String>) -> Ap
         .await
         .map_err(|_| ApiError::NotFound("this run has no terminal output".into()))?;
     Ok(([(axum::http::header::CONTENT_TYPE, "text/plain; charset=utf-8")], bytes).into_response())
+}
+
+/// Policy check results of a run.
+pub async fn policy(State(state): State<AppState>, Path(id): Path<String>) -> ApiResult<Json<Value>> {
+    get_run(&state, &id).await?;
+    let raw = tokio::fs::read(runner::run_dir(&state, &id).join("policy.json"))
+        .await
+        .map_err(|_| ApiError::NotFound("this run has no policy check".into()))?;
+    Ok(Json(serde_json::from_slice(&raw).map_err(anyhow::Error::from)?))
+}
+
+/// Where each variable of the run came from (keys and sources, no values).
+pub async fn variables(State(state): State<AppState>, Path(id): Path<String>) -> ApiResult<Json<Value>> {
+    get_run(&state, &id).await?;
+    match tokio::fs::read(runner::run_dir(&state, &id).join("variables.json")).await {
+        Ok(raw) => Ok(Json(serde_json::from_slice(&raw).map_err(anyhow::Error::from)?)),
+        Err(_) => Ok(Json(json!([]))),
+    }
 }

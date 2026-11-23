@@ -8,6 +8,8 @@
 	import Logo from '#lib/components/Logo.svelte';
 	import Boxes from '@lucide/svelte/icons/boxes';
 	import Settings from '@lucide/svelte/icons/settings';
+	import Layers from '@lucide/svelte/icons/layers';
+	import ShieldCheck from '@lucide/svelte/icons/shield-check';
 	import BookOpen from '@lucide/svelte/icons/book-open';
 	import Sun from '@lucide/svelte/icons/sun';
 	import Moon from '@lucide/svelte/icons/moon';
@@ -17,6 +19,8 @@
 
 	const nav = [
 		{ href: '/', label: 'Workspaces', icon: Boxes, match: (p: string) => p === '/' || p.startsWith('/workspaces') },
+		{ href: '/variable-sets', label: 'Variable sets', icon: Layers, match: (p: string) => p.startsWith('/variable-sets') },
+		{ href: '/policies', label: 'Policies', icon: ShieldCheck, match: (p: string) => p.startsWith('/policies') },
 		{ href: '/settings', label: 'Settings', icon: Settings, match: (p: string) => p.startsWith('/settings') }
 	];
 </script>

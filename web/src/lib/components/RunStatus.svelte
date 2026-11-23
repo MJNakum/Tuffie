@@ -8,8 +8,19 @@
 	import CircleAlert from '@lucide/svelte/icons/circle-alert';
 	import Clock from '@lucide/svelte/icons/clock';
 
-	let { status, variant = 'badge' }: { status: RunStatus; variant?: 'badge' | 'icon' | 'text' } = $props();
-	const info = $derived(statusInfo[status] ?? { label: status, tone: 'neutral' });
+	let {
+		status,
+		variant = 'badge',
+		kind,
+		hasChanges
+	}: { status: RunStatus; variant?: 'badge' | 'icon' | 'text'; kind?: string; hasChanges?: boolean | null } = $props();
+	const info = $derived(
+		kind === 'drift' && status === 'planned_and_finished'
+			? hasChanges
+				? { label: 'Drift detected', tone: 'warning' as const, active: false }
+				: { label: 'No drift', tone: 'success' as const, active: false }
+			: (statusInfo[status] ?? { label: status, tone: 'neutral' })
+	);
 	const Icon = $derived(
 		info.active
 			? null
@@ -17,7 +28,9 @@
 				? Clock
 				: status === 'planned'
 					? CircleAlert
-					: info.tone === 'success'
+					: info.tone === 'warning'
+						? CircleAlert
+						: info.tone === 'success'
 						? CircleCheck
 						: info.tone === 'danger'
 							? CircleX

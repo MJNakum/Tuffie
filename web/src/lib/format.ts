@@ -39,6 +39,7 @@ export const kindLabel: Record<RunKind, string> = {
 	plan_and_apply: 'Plan and apply',
 	destroy: 'Destroy',
 	refresh: 'Refresh state',
+	drift: 'Drift check',
 	cli: 'Terminal'
 };
 
@@ -54,6 +55,7 @@ export const statusInfo: Record<RunStatus, { label: string; tone: Tone; active?:
 	discarded: { label: 'Discarded', tone: 'neutral' },
 	canceled: { label: 'Canceled', tone: 'neutral' },
 	errored: { label: 'Errored', tone: 'danger' },
+	policy_failed: { label: 'Policy failed', tone: 'danger' },
 	running: { label: 'Running', tone: 'primary', active: true },
 	succeeded: { label: 'Succeeded', tone: 'success' },
 	failed: { label: 'Failed', tone: 'danger' }
@@ -105,3 +107,18 @@ export function shortPath(p: string | null | undefined, max = 48): string {
 	if (p.length <= max) return p;
 	return '…' + p.slice(p.length - max + 1);
 }
+
+export const driftIntervals = [
+	{ value: '0', label: 'Off' },
+	{ value: '60', label: 'Every hour' },
+	{ value: '360', label: 'Every 6 hours' },
+	{ value: '720', label: 'Every 12 hours' },
+	{ value: '1440', label: 'Every day' },
+	{ value: '10080', label: 'Every week' }
+];
+
+export function intervalLabel(min: number): string {
+	return driftIntervals.find((d) => Number(d.value) === min)?.label ?? `Every ${min} minutes`;
+}
+
+export const policyTone: Record<string, Tone> = { passed: 'success', warned: 'warning', failed: 'danger', errored: 'danger' };

@@ -23,7 +23,7 @@ pub async fn list(State(state): State<AppState>) -> ApiResult<Json<Vec<Workspace
     for ws in all {
         let latest_run: Option<Run> =
             // Terminal commands such as `state list` do not count as the latest run.
-            sqlx::query_as("SELECT * FROM runs WHERE workspace_id = ? AND kind != 'cli' ORDER BY created_at DESC LIMIT 1")
+            sqlx::query_as("SELECT * FROM runs WHERE workspace_id = ? AND kind NOT IN ('cli', 'drift') ORDER BY created_at DESC LIMIT 1")
                 .bind(&ws.id)
                 .fetch_optional(&state.db)
                 .await?;
@@ -155,6 +155,7 @@ pub struct UpdateWorkspace {
     tool: Option<String>,
     tool_path: Option<Option<String>>,
     auto_apply: Option<bool>,
+    drift_interval_minutes: Option<i64>,
 }
 
 pub async fn update(
@@ -188,8 +189,14 @@ pub async fn update(
     if let Some(a) = req.auto_apply {
         ws.auto_apply = a;
     }
+    if let Some(m) = req.drift_interval_minutes {
+        if m != 0 && !(15..=10080).contains(&m) {
+            return Err(bad("drift check interval must be 0 (off) or between 15 minutes and 7 days"));
+        }
+        ws.drift_interval_minutes = m;
+    }
     sqlx::query(
-        "UPDATE workspaces SET name = ?, description = ?, git_ref = ?, working_dir = ?, tool = ?, tool_path = ?, auto_apply = ?, updated_at = ? WHERE id = ?",
+        "UPDATE workspaces SET name = ?, description = ?, git_ref = ?, working_dir = ?, tool = ?, tool_path = ?, auto_apply = ?, drift_interval_minutes = ?, updated_at = ? WHERE id = ?",
     )
     .bind(&ws.name)
     .bind(&ws.description)
@@ -198,6 +205,7 @@ pub async fn update(
     .bind(&ws.tool)
     .bind(&ws.tool_path)
     .bind(ws.auto_apply)
+    .bind(ws.drift_interval_minutes)
     .bind(now())
     .bind(&id)
     .execute(&state.db)
@@ -235,4 +243,11 @@ pub async fn sync(State(state): State<AppState>, Path(id): Path<String>) -> ApiR
         .await
         .map_err(|e| bad(format!("{e:#}")))?;
     Ok(Json(json!({ "sha": sha })))
+}
+
+/// Start a drift check now.
+pub async fn check_drift(State(state): State<AppState>, Path(id): Path<String>) -> ApiResult<(StatusCode, Json<crate::models::Run>)> {
+    let ws = get_workspace(&state, &id).await?;
+    let run = crate::runner::create_run(&state, &ws, crate::models::RunKind::Drift, "Drift check".into(), "ui").await?;
+    Ok((StatusCode::CREATED, Json(run)))
 }

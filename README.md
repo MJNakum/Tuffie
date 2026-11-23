@@ -11,6 +11,8 @@ Tuffie is a companion to the CLI, not a replacement for it. It gives you the thi
 | Workspaces | Terminal | Dependency graph |
 |---|---|---|
 | ![Workspaces](docs/screenshots/workspaces.png) | ![Terminal](docs/screenshots/terminal.png) | ![Graph](docs/screenshots/graph.png) |
+| **Policy check** | **Drift detection** | |
+| ![Policy check](docs/screenshots/policy-check.png) | ![Drift](docs/screenshots/drift.png) | |
 
 ## Features
 
@@ -21,6 +23,9 @@ Tuffie is a companion to the CLI, not a replacement for it. It gives you the thi
 - **Live logs** — streamed over WebSocket while the run is active.
 - **State browser** — resources grouped by module, attribute values, outputs and a dependency graph. Tuffie saves a state snapshot after every apply, so you get state history with any backend.
 - **Variables** — Terraform and environment variables, HCL values, and sensitive (write-only) values.
+- **Variable sets** — share variables (credentials, tags, regions) with all workspaces or with the workspaces you choose. Each run shows where every variable came from.
+- **Policy checks** — Rego (Open Policy Agent) policies run on every plan, inside Tuffie, with no `opa` binary to install. *Mandatory* sets block the apply; *advisory* sets warn. Conftest-style `deny`, `violation` and `warn` rules work as they are.
+- **Drift detection** — a schedule for each workspace (hourly to weekly) or a *Check now* button. Drifted workspaces are flagged on the list, with an attribute diff of what changed outside Terraform.
 - **File editor** — edit `.tf` files with HCL syntax highlighting. Press `Ctrl+S` to save.
 - **Integrated terminal** — runs `terraform`, `tofu` and `tf` (an alias) in the workspace folder, with your variables set. Every command shows up in the run history.
 - **Terraform and OpenTofu** — choose the tool for each workspace.
@@ -116,10 +121,13 @@ Ticked items are done. The order inside a phase is not fixed.
 - [x] Dark and light themes
 - [x] Local-mode protection (loopback only, Host and Origin checks)
 - [ ] Test the S3 backend end to end (it works through your own `backend "s3"` block, but it is not tested yet)
-- [ ] Scheduled drift detection (today: start a *Refresh state* run by hand)
-- [ ] Policy checks with OPA / Conftest before apply
-- [ ] Variable sets shared by many workspaces
-- [ ] Variable origin tracing for each run
+- [x] Scheduled drift detection, and a *Check now* button
+- [x] Policy checks with Rego (OPA) before apply: advisory and mandatory sets, inline or from a folder
+- [x] Test a policy set against the saved plan of an earlier run
+- [x] Variable sets shared by many workspaces (global or assigned)
+- [x] Variable origin tracing for each run
+- [ ] Soft-mandatory policies that an admin can override
+- [ ] Notify when drift is found (see Phase 2 notifications)
 - [ ] Install and switch Terraform / OpenTofu versions from the UI
 - [ ] Command palette (`Ctrl+K`) and global search
 - [ ] Download plan JSON and run logs

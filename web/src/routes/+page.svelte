@@ -16,6 +16,7 @@
 	import GitBranch from '@lucide/svelte/icons/git-branch';
 	import Boxes from '@lucide/svelte/icons/boxes';
 	import Lock from '@lucide/svelte/icons/lock';
+	import Radar from '@lucide/svelte/icons/radar';
 
 	let list = $state<WorkspaceSummary[] | null>(null);
 	let error = $state('');
@@ -95,6 +96,9 @@
 								<a href="/workspaces/{w.id}" class="flex items-center gap-2 font-medium text-fg after:absolute after:inset-0">
 									{w.name}
 									{#if w.lock_run_id}<Lock class="size-3 text-warning" />{/if}
+									{#if w.drift_status === 'drifted'}
+										<span class="relative z-10 inline-flex h-[18px] items-center gap-1 rounded-full bg-warning-soft px-1.5 text-[11px] font-medium text-warning" title="{w.drift_count} resource(s) changed outside Terraform"><Radar class="size-3" />Drifted</span>
+									{/if}
 								</a>
 								{#if w.description}<div class="mt-0.5 max-w-[280px] truncate text-[12px] text-subtle">{w.description}</div>{/if}
 							</td>

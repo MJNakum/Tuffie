@@ -17,6 +17,7 @@
 	import FileSearch from '@lucide/svelte/icons/file-search';
 	import Rocket from '@lucide/svelte/icons/rocket';
 	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
+	import Radar from '@lucide/svelte/icons/radar';
 	import Trash2 from '@lucide/svelte/icons/trash-2';
 	import SquareTerminal from '@lucide/svelte/icons/square-terminal';
 	import ChevronRight from '@lucide/svelte/icons/chevron-right';
@@ -67,7 +68,8 @@
 	const runMenu = [
 		{ label: 'Plan and apply', hint: 'Plan, then apply after you confirm', icon: Rocket, onSelect: () => start('plan_and_apply') },
 		{ label: 'Plan only', hint: 'Show changes. Never applies.', icon: FileSearch, onSelect: () => start('plan_only') },
-		{ label: 'Refresh state', hint: 'Detect drift and update state only', icon: RefreshCw, onSelect: () => start('refresh') },
+		{ label: 'Check for drift', hint: 'Compare real infrastructure with state. Changes nothing.', icon: Radar, onSelect: () => start('drift') },
+		{ label: 'Refresh state', hint: 'Accept drift: update the state to match', icon: RefreshCw, onSelect: () => start('refresh') },
 		'separator' as const,
 		{ label: 'Destroy infrastructure', hint: 'Plan to delete every resource', icon: Trash2, danger: true, onSelect: () => start('destroy') }
 	];

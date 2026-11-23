@@ -11,6 +11,7 @@
 	import SquareTerminal from '@lucide/svelte/icons/square-terminal';
 	import MousePointerClick from '@lucide/svelte/icons/mouse-pointer-click';
 	import History from '@lucide/svelte/icons/history';
+	import CalendarClock from '@lucide/svelte/icons/calendar-clock';
 
 	const ctx = useWorkspace();
 	let runs = $state<Run[] | null>(null);
@@ -41,7 +42,7 @@
 				{#each shown as r (r.id)}
 					<li>
 						<a href="/workspaces/{ctx.id}/runs/{r.id}" class="grid grid-cols-[22px_minmax(0,1fr)_auto_auto_90px] items-center gap-4 px-4 py-3 hover:bg-hover">
-							<RunStatus status={r.status} variant="icon" />
+							<RunStatus status={r.status} variant="icon" kind={r.kind} hasChanges={r.has_changes} />
 							<div class="min-w-0">
 								{#if r.kind === 'cli'}
 									<div class="mono truncate text-[12.5px]">{r.command}</div>
@@ -50,16 +51,19 @@
 								{/if}
 								<div class="mt-0.5 flex items-center gap-2 text-[12px] text-subtle">
 									<span class="inline-flex items-center gap-1">
-										{#if r.source === 'terminal'}<SquareTerminal class="size-3" />Terminal{:else}<MousePointerClick class="size-3" />{kindLabel[r.kind]}{/if}
+										{#if r.source === 'terminal'}<SquareTerminal class="size-3" />Terminal{:else if r.source === 'schedule'}<CalendarClock class="size-3" />{kindLabel[r.kind]} (scheduled){:else}<MousePointerClick class="size-3" />{kindLabel[r.kind]}{/if}
 									</span>
 									<span>·</span><span class="mono">{r.id}</span>
 									{#if r.started_at}<span>·</span><span>{duration(r.started_at, r.finished_at)}</span>{/if}
 								</div>
 							</div>
 							<div>
-								{#if r.kind !== 'cli' && r.has_changes !== null}<ChangeCounts add={r.add_count} change={r.change_count} destroy={r.destroy_count} />{/if}
+								{#if r.kind === 'drift' && r.has_changes !== null}
+									<span class="text-[12px] font-medium {r.has_changes ? 'text-warning' : 'text-subtle'}">{r.has_changes ? `${Math.max(r.drift_count, 1)} drifted` : 'no drift'}</span>
+								{:else if r.kind !== 'cli' && r.has_changes !== null}<ChangeCounts add={r.add_count} change={r.change_count} destroy={r.destroy_count} />{/if}
+								{#if r.policy_status && r.policy_status !== 'passed'}<span class="ml-2 text-[11.5px] font-medium {r.policy_status === 'warned' ? 'text-warning' : 'text-danger'}">policy {r.policy_status}</span>{/if}
 							</div>
-							<RunStatus status={r.status} variant="text" />
+							<RunStatus status={r.status} variant="text" kind={r.kind} hasChanges={r.has_changes} />
 							<span class="text-right text-[12px] text-subtle">{ago(r.created_at)}</span>
 						</a>
 					</li>

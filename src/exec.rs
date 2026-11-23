@@ -128,6 +128,24 @@ const SERVER_ENV_ALLOWLIST: &[&str] = &["PATH", "HOME", "USER", "LANG", "LC_ALL"
 pub struct RunEnv {
     pub vars: BTreeMap<String, String>,
     pub redactor: Redactor,
+    /// Where each variable came from. Keys only, never values.
+    pub origins: Vec<VarOrigin>,
+}
+
+#[derive(Debug, Clone, Serialize, serde::Deserialize)]
+pub struct VarOrigin {
+    pub key: String,
+    pub category: String,
+    /// `workspace` or `variable_set`.
+    pub source: String,
+    pub set_id: Option<String>,
+    pub set_name: Option<String>,
+    pub sensitive: bool,
+    pub hcl: bool,
+    /// True when a later source set the same variable.
+    pub overridden: bool,
+    /// The source that won, when `overridden`.
+    pub overridden_by: Option<String>,
 }
 
 pub async fn build_env(state: &AppState, ws: &Workspace) -> anyhow::Result<RunEnv> {
@@ -143,20 +161,52 @@ pub async fn build_env(state: &AppState, ws: &Workspace) -> anyhow::Result<RunEn
     std::fs::create_dir_all(&cache).ok();
     vars.entry("TF_PLUGIN_CACHE_DIR".into()).or_insert_with(|| cache.display().to_string());
 
-    let rows: Vec<VariableRow> = sqlx::query_as("SELECT * FROM variables WHERE workspace_id = ?")
+    // Precedence, lowest first: global variable sets, assigned variable sets
+    // (each group by name), then the workspace's own variables.
+    let mut layers: Vec<(Option<(String, String)>, Vec<VariableRow>)> = vec![];
+    for set_id in crate::api::assign::sets_for_workspace(state, crate::api::assign::Kind::Variable, &ws.id).await? {
+        let (name,): (String,) = sqlx::query_as("SELECT name FROM variable_sets WHERE id = ?").bind(&set_id).fetch_one(&state.db).await?;
+        let rows: Vec<VariableRow> = sqlx::query_as("SELECT * FROM variables WHERE set_id = ? ORDER BY key").bind(&set_id).fetch_all(&state.db).await?;
+        layers.push((Some((set_id, name)), rows));
+    }
+    let rows: Vec<VariableRow> = sqlx::query_as("SELECT * FROM variables WHERE workspace_id = ? ORDER BY key")
         .bind(&ws.id)
         .fetch_all(&state.db)
         .await?;
+    layers.push((None, rows));
+
     let mut redactor = Redactor::default();
-    for row in rows {
-        let value = state.crypto.decrypt(&row.value_enc, &row.id)?;
-        if row.sensitive {
-            redactor.add(&value);
+    let mut origins: Vec<VarOrigin> = vec![];
+    for (set, rows) in layers {
+        for row in rows {
+            let value = state.crypto.decrypt(&row.value_enc, &row.id)?;
+            if row.sensitive {
+                redactor.add(&value);
+            }
+            let name = if row.category == "terraform" { format!("TF_VAR_{}", row.key) } else { row.key.clone() };
+            let source_label = match &set {
+                Some((_, n)) => format!("variable set {n}"),
+                None => "workspace".to_string(),
+            };
+            for o in origins.iter_mut().filter(|o| o.key == row.key && o.category == row.category && !o.overridden) {
+                o.overridden = true;
+                o.overridden_by = Some(source_label.clone());
+            }
+            origins.push(VarOrigin {
+                key: row.key.clone(),
+                category: row.category.clone(),
+                source: if set.is_some() { "variable_set".into() } else { "workspace".into() },
+                set_id: set.as_ref().map(|s| s.0.clone()),
+                set_name: set.as_ref().map(|s| s.1.clone()),
+                sensitive: row.sensitive,
+                hcl: row.hcl,
+                overridden: false,
+                overridden_by: None,
+            });
+            vars.insert(name, value.to_string());
         }
-        let name = if row.category == "terraform" { format!("TF_VAR_{}", row.key) } else { row.key.clone() };
-        vars.insert(name, value.to_string());
     }
-    Ok(RunEnv { vars, redactor })
+    Ok(RunEnv { vars, redactor, origins })
 }
 
 #[cfg(test)]

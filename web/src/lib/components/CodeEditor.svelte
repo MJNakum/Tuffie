@@ -8,6 +8,7 @@
 	import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 	import { tags as t } from '@lezer/highlight';
 	import { hcl } from '#lib/hcl';
+	import { rego } from '#lib/rego';
 
 	let {
 		value,
@@ -22,6 +23,7 @@
 
 	function langFor(p: string) {
 		if (/\.(tf|tfvars|hcl|tftest\.hcl)$/.test(p)) return StreamLanguage.define(hcl);
+		if (p.endsWith('.rego')) return StreamLanguage.define(rego);
 		return [];
 	}
 

@@ -8,12 +8,13 @@ use crate::models::{new_id, now, Variable, VariableRow};
 use crate::runner::get_workspace;
 use crate::AppState;
 
-fn to_api(state: &AppState, row: VariableRow) -> anyhow::Result<Variable> {
+pub fn to_api(state: &AppState, row: VariableRow) -> anyhow::Result<Variable> {
     // Sensitive values are write-only: the API never returns them.
     let value = if row.sensitive { None } else { Some(state.crypto.decrypt(&row.value_enc, &row.id)?.to_string()) };
     Ok(Variable {
         id: row.id,
         workspace_id: row.workspace_id,
+        set_id: row.set_id,
         key: row.key,
         value,
         category: row.category,
@@ -42,13 +43,18 @@ fn validate(key: &str, category: &str) -> ApiResult<()> {
     Ok(())
 }
 
-pub async fn list(State(state): State<AppState>, Path(ws): Path<String>) -> ApiResult<Json<Vec<Variable>>> {
-    let rows: Vec<VariableRow> = sqlx::query_as("SELECT * FROM variables WHERE workspace_id = ? ORDER BY category, key")
-        .bind(&ws)
+pub async fn list_for(state: &AppState, column: &str, owner: &str) -> ApiResult<Vec<Variable>> {
+    // `column` is a fixed internal name, never user input.
+    debug_assert!(column == "workspace_id" || column == "set_id");
+    let rows: Vec<VariableRow> = sqlx::query_as(&format!("SELECT * FROM variables WHERE {column} = ? ORDER BY category, key"))
+        .bind(owner)
         .fetch_all(&state.db)
         .await?;
-    let out = rows.into_iter().map(|r| to_api(&state, r)).collect::<anyhow::Result<Vec<_>>>()?;
-    Ok(Json(out))
+    Ok(rows.into_iter().map(|r| to_api(state, r)).collect::<anyhow::Result<Vec<_>>>()?)
+}
+
+pub async fn list(State(state): State<AppState>, Path(ws): Path<String>) -> ApiResult<Json<Vec<Variable>>> {
+    Ok(Json(list_for(&state, "workspace_id", &ws).await?))
 }
 
 #[derive(Deserialize)]
@@ -64,15 +70,24 @@ pub struct CreateVar {
     description: String,
 }
 
-pub async fn create(State(state): State<AppState>, Path(ws): Path<String>, Json(req): Json<CreateVar>) -> ApiResult<(StatusCode, Json<Variable>)> {
-    get_workspace(&state, &ws).await?;
+pub enum Owner<'a> {
+    Workspace(&'a str),
+    Set(&'a str),
+}
+
+pub async fn insert(state: &AppState, owner: Owner<'_>, req: CreateVar) -> ApiResult<Variable> {
     validate(&req.key, &req.category)?;
     let id = new_id("var");
     let enc = state.crypto.encrypt(&req.value, &id)?;
+    let (ws, set) = match owner {
+        Owner::Workspace(w) => (Some(w), None),
+        Owner::Set(s) => (None, Some(s)),
+    };
     let t = now();
-    sqlx::query("INSERT INTO variables (id, workspace_id, key, value_enc, category, sensitive, hcl, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+    sqlx::query("INSERT INTO variables (id, workspace_id, set_id, key, value_enc, category, sensitive, hcl, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
         .bind(&id)
-        .bind(&ws)
+        .bind(ws)
+        .bind(set)
         .bind(&req.key)
         .bind(&enc)
         .bind(&req.category)
@@ -84,7 +99,12 @@ pub async fn create(State(state): State<AppState>, Path(ws): Path<String>, Json(
         .execute(&state.db)
         .await?;
     let row: VariableRow = sqlx::query_as("SELECT * FROM variables WHERE id = ?").bind(&id).fetch_one(&state.db).await?;
-    Ok((StatusCode::CREATED, Json(to_api(&state, row)?)))
+    Ok(to_api(state, row)?)
+}
+
+pub async fn create(State(state): State<AppState>, Path(ws): Path<String>, Json(req): Json<CreateVar>) -> ApiResult<(StatusCode, Json<Variable>)> {
+    get_workspace(&state, &ws).await?;
+    Ok((StatusCode::CREATED, Json(insert(&state, Owner::Workspace(&ws), req).await?)))
 }
 
 #[derive(Deserialize)]

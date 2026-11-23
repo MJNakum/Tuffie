@@ -15,6 +15,11 @@ export interface Workspace {
 	lock_run_id: string | null;
 	created_at: string;
 	updated_at: string;
+	drift_interval_minutes: number;
+	drift_status: 'ok' | 'drifted' | 'error' | null;
+	drift_count: number;
+	drift_checked_at: string | null;
+	drift_run_id: string | null;
 }
 
 export interface WorkspaceSummary extends Workspace {
@@ -31,7 +36,7 @@ export interface WorkspaceDetail extends Workspace {
 	tool_version: string | null;
 }
 
-export type RunKind = 'plan_only' | 'plan_and_apply' | 'destroy' | 'refresh' | 'cli';
+export type RunKind = 'plan_only' | 'plan_and_apply' | 'destroy' | 'refresh' | 'drift' | 'cli';
 
 export type RunStatus =
 	| 'pending'
@@ -43,6 +48,7 @@ export type RunStatus =
 	| 'discarded'
 	| 'canceled'
 	| 'errored'
+	| 'policy_failed'
 	| 'running'
 	| 'succeeded'
 	| 'failed';
@@ -51,7 +57,7 @@ export interface Run {
 	id: string;
 	workspace_id: string;
 	kind: RunKind;
-	source: 'ui' | 'terminal' | 'api';
+	source: 'ui' | 'terminal' | 'api' | 'schedule';
 	status: RunStatus;
 	message: string;
 	command: string | null;
@@ -60,6 +66,8 @@ export interface Run {
 	change_count: number;
 	destroy_count: number;
 	import_count: number;
+	drift_count: number;
+	policy_status: 'passed' | 'warned' | 'failed' | 'errored' | null;
 	exit_code: number | null;
 	has_state_snapshot: boolean;
 	state_serial: number | null;
@@ -109,11 +117,13 @@ export interface Plan {
 	resource_changes: ResourceChange[];
 	output_changes: { name: string; actions: Action[]; before: any; after: any; after_unknown: any }[];
 	resource_drift: number;
+	drift: { address: string; type: string; mode: string; provider_name: string; actions: Action[]; before: any; after: any }[];
 }
 
 export interface Variable {
 	id: string;
-	workspace_id: string;
+	workspace_id: string | null;
+	set_id: string | null;
 	key: string;
 	value: string | null;
 	category: 'terraform' | 'env';
@@ -168,4 +178,75 @@ export interface SystemInfo {
 	data_dir: string;
 	inherit_env: boolean;
 	tools: { name: Tool; path: string | null; version: string | null }[];
+}
+
+export interface VariableSet {
+	id: string;
+	name: string;
+	description: string;
+	global: boolean;
+	workspace_ids: string[];
+	variables: Variable[];
+	created_at: string;
+	updated_at: string;
+}
+
+export interface Policy {
+	id: string;
+	set_id: string;
+	name: string;
+	rego: string;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface PolicySet {
+	id: string;
+	name: string;
+	description: string;
+	enforcement: 'advisory' | 'mandatory';
+	global: boolean;
+	source_kind: 'inline' | 'path';
+	source_path: string | null;
+	workspace_ids: string[];
+	policies: Policy[];
+	files: string[] | null;
+	load_error: string | null;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface PolicyFinding {
+	level: 'fail' | 'warn';
+	package: string;
+	rule: string;
+	message: string;
+	details?: Record<string, any>;
+}
+
+export interface PolicySetResult {
+	set_id: string;
+	set_name: string;
+	enforcement: 'advisory' | 'mandatory';
+	status: 'passed' | 'warned' | 'failed' | 'errored';
+	policy_count: number;
+	error: string | null;
+	findings: PolicyFinding[];
+}
+
+export interface PolicyReport {
+	status: 'passed' | 'warned' | 'failed' | 'errored';
+	sets: PolicySetResult[];
+}
+
+export interface VarOrigin {
+	key: string;
+	category: 'terraform' | 'env';
+	source: 'workspace' | 'variable_set';
+	set_id: string | null;
+	set_name: string | null;
+	sensitive: boolean;
+	hcl: boolean;
+	overridden: boolean;
+	overridden_by: string | null;
 }

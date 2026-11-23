@@ -1,4 +1,7 @@
+pub mod assign;
 mod files;
+mod policies;
+mod varsets;
 mod runs;
 mod state;
 mod system;
@@ -18,6 +21,17 @@ pub fn router(state: AppState) -> Router {
         .route("/workspaces", get(workspaces::list).post(workspaces::create))
         .route("/workspaces/{id}", get(workspaces::get).patch(workspaces::update).delete(workspaces::delete))
         .route("/workspaces/{id}/sync", post(workspaces::sync))
+        .route("/workspaces/{id}/drift", post(workspaces::check_drift))
+        .route("/workspaces/{id}/variable-sets", get(varsets::for_workspace))
+        .route("/variable-sets", get(varsets::list).post(varsets::create))
+        .route("/variable-sets/{id}", get(varsets::get).patch(varsets::update).delete(varsets::delete))
+        .route("/variable-sets/{id}/variables", post(varsets::add_variable))
+        .route("/policy-sets", get(policies::list).post(policies::create))
+        .route("/policy-sets/testable-runs", get(policies::testable_runs))
+        .route("/policy-sets/{id}", get(policies::get).patch(policies::update).delete(policies::delete))
+        .route("/policy-sets/{id}/policies", post(policies::add_policy))
+        .route("/policy-sets/{id}/test", post(policies::test))
+        .route("/policies/{id}", patch(policies::update_policy).delete(policies::delete_policy))
         .route("/workspaces/{id}/runs", get(runs::list).post(runs::create))
         .route("/workspaces/{id}/variables", get(variables::list).post(variables::create))
         .route("/workspaces/{id}/files", get(files::tree))
@@ -31,6 +45,8 @@ pub fn router(state: AppState) -> Router {
         .route("/runs/{id}/stream", get(runs::stream))
         .route("/runs/{id}/plan", get(runs::plan))
         .route("/runs/{id}/output", get(runs::output))
+        .route("/runs/{id}/policy", get(runs::policy))
+        .route("/runs/{id}/variables", get(runs::variables))
         .route("/runs/{id}/state", get(state::snapshot))
         .route("/runs/{id}/apply", post(runs::apply))
         .route("/runs/{id}/discard", post(runs::discard))

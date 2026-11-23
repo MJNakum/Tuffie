@@ -12,6 +12,11 @@
 	import ValueView from '#lib/components/ValueView.svelte';
 	import ArrowRight from '@lucide/svelte/icons/arrow-right';
 	import SquareTerminal from '@lucide/svelte/icons/square-terminal';
+	import Radar from '@lucide/svelte/icons/radar';
+	import { goto } from '$app/navigation';
+	import { toast } from 'svelte-sonner';
+	import { errMsg } from '#lib/api';
+	import { intervalLabel } from '#lib/format';
 
 	const ctx = useWorkspace();
 	const ws = $derived(ctx.ws!);
@@ -19,7 +24,7 @@
 	let st = $state<StateView | null>(null);
 	let stErr = $state('');
 
-	$effect(() => poll(async () => (runs = await api.runs(ctx.id, 6).catch(() => runs)), 3000));
+	$effect(() => poll(async () => (runs = await api.runs(ctx.id, 15).catch(() => runs)), 3000));
 	$effect(() => {
 		ctx.version;
 		api.state(ctx.id).then(
@@ -28,13 +33,35 @@
 		);
 	});
 
-	const latest = $derived(runs?.find((r) => r.kind !== 'cli') ?? null);
+	// Drift checks and terminal commands do not count as the latest run.
+	const latest = $derived(runs?.find((r) => r.kind !== 'cli' && r.kind !== 'drift') ?? null);
 	const byType = $derived.by(() => {
 		const m = new Map<string, number>();
 		for (const r of st?.resources ?? []) if (r.mode === 'managed') m.set(r.type, (m.get(r.type) ?? 0) + 1);
 		return [...m].sort((a, b) => b[1] - a[1]);
 	});
 	const managed = $derived((st?.resources ?? []).filter((r) => r.mode === 'managed').length);
+
+	let checking = $state(false);
+	async function checkDrift() {
+		checking = true;
+		try {
+			const r = await api.checkDrift(ctx.id);
+			goto(`/workspaces/${ctx.id}/runs/${r.id}`);
+		} catch (e) {
+			toast.error(errMsg(e));
+		} finally {
+			checking = false;
+		}
+	}
+	const nextCheck = $derived.by(() => {
+		if (!ws.drift_interval_minutes) return null;
+		if (!ws.drift_checked_at) return 'within a minute';
+		const t = new Date(ws.drift_checked_at).getTime() + ws.drift_interval_minutes * 60000 - Date.now();
+		if (t <= 60000) return 'within a minute';
+		const m = Math.round(t / 60000);
+		return m < 120 ? `in ${m} min` : `in ${Math.round(m / 60)} h`;
+	});
 </script>
 
 <div class="grid gap-5 px-8 py-6 xl:grid-cols-[minmax(0,1fr)_340px]">
@@ -69,7 +96,7 @@
 					{#each runs.filter((r) => r.id !== latest?.id).slice(0, 4) as r (r.id)}
 						<li>
 							<a href="/workspaces/{ws.id}/runs/{r.id}" class="flex items-center gap-3 px-4 py-2 text-[12.5px] hover:bg-hover">
-								<RunStatus status={r.status} variant="icon" />
+								<RunStatus status={r.status} variant="icon" kind={r.kind} hasChanges={r.has_changes} />
 								{#if r.kind === 'cli'}
 									<SquareTerminal class="size-3.5 text-subtle" /><span class="mono min-w-0 flex-1 truncate text-muted">{r.command}</span>
 								{:else}
@@ -110,6 +137,34 @@
 	</div>
 
 	<div class="flex flex-col gap-5">
+		<Card title="Drift">
+			{#snippet actions()}<Button size="sm" variant="ghost" loading={checking} onclick={checkDrift}><Radar />Check now</Button>{/snippet}
+			<div class="flex items-start gap-3">
+				<span
+					class="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg {ws.drift_status === 'drifted'
+						? 'bg-warning-soft text-warning'
+						: ws.drift_status === 'ok'
+							? 'bg-success-soft text-success'
+							: ws.drift_status === 'error'
+								? 'bg-danger-soft text-danger'
+								: 'bg-surface-3 text-subtle'}"><Radar class="size-4" /></span
+				>
+				<div class="min-w-0 text-[12.5px]">
+					<div class="text-[13px] font-medium">
+						{#if ws.drift_status === 'drifted'}{ws.drift_count} resource{ws.drift_count === 1 ? '' : 's'} drifted
+						{:else if ws.drift_status === 'ok'}No drift
+						{:else if ws.drift_status === 'error'}Last check failed
+						{:else}Not checked yet{/if}
+					</div>
+					<div class="mt-0.5 text-muted">
+						{#if ws.drift_checked_at}Checked {ago(ws.drift_checked_at)}{#if ws.drift_run_id} · <a class="text-primary-text hover:underline" href="/workspaces/{ws.id}/runs/{ws.drift_run_id}">details</a>{/if}{:else}Compares real infrastructure with the state.{/if}
+					</div>
+					<div class="mt-1 text-subtle">
+						{#if ws.drift_interval_minutes}Schedule: {intervalLabel(ws.drift_interval_minutes).toLowerCase()} · next {nextCheck}{:else}No schedule. <a class="text-primary-text hover:underline" href="/workspaces/{ws.id}/settings">Set one</a>{/if}
+					</div>
+				</div>
+			</div>
+		</Card>
 		<Card title="Details">
 			<dl class="grid grid-cols-[110px_minmax(0,1fr)] gap-x-3 gap-y-2.5 text-[12.5px]">
 				<dt class="text-subtle">ID</dt><dd class="mono truncate">{ws.id}</dd>

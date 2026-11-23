@@ -167,12 +167,13 @@ pub async fn unlock(state: &AppState, ws_id: &str, run_id: &str) -> anyhow::Resu
 
 // ---------- public operations ----------
 
-pub async fn create_run(state: &AppState, ws: &Workspace, kind: RunKind, message: String) -> anyhow::Result<Run> {
+pub async fn create_run(state: &AppState, ws: &Workspace, kind: RunKind, message: String, source: &str) -> anyhow::Result<Run> {
     let id = crate::models::new_id("run");
-    sqlx::query("INSERT INTO runs (id, workspace_id, kind, source, status, message, created_at) VALUES (?, ?, ?, 'ui', ?, ?, ?)")
+    sqlx::query("INSERT INTO runs (id, workspace_id, kind, source, status, message, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
         .bind(&id)
         .bind(&ws.id)
         .bind(kind.as_str())
+        .bind(source)
         .bind(status::PENDING)
         .bind(&message)
         .bind(now())
@@ -243,6 +244,55 @@ async fn fail(state: &AppState, run_id: &str, msg: &str) {
         sink.status(status::ERRORED).await;
     }
     let _ = set_status(state, run_id, status::ERRORED).await;
+    if let Ok(run) = get_run(state, run_id).await {
+        if run.kind == RunKind::Drift.as_str() {
+            let _ = record_drift(state, &run.workspace_id, run_id, "error", 0).await;
+        }
+    }
+}
+
+/// Save the result of a drift check on the workspace.
+async fn record_drift(state: &AppState, ws_id: &str, run_id: &str, drift_status: &str, count: i64) -> anyhow::Result<()> {
+    sqlx::query("UPDATE workspaces SET drift_status = ?, drift_count = ?, drift_checked_at = ?, drift_run_id = ? WHERE id = ?")
+        .bind(drift_status)
+        .bind(count)
+        .bind(now())
+        .bind(run_id)
+        .bind(ws_id)
+        .execute(&state.db)
+        .await?;
+    Ok(())
+}
+
+/// Start drift checks for workspaces whose schedule is due. Runs forever.
+///
+/// A check is skipped while the workspace has a queued, active or
+/// unconfirmed run, so drift checks never pile up or block your work.
+pub async fn drift_scheduler(state: AppState) {
+    let mut tick = tokio::time::interval(std::time::Duration::from_secs(30));
+    loop {
+        tick.tick().await;
+        if let Err(e) = schedule_due(&state).await {
+            tracing::warn!(error = ?e, "drift scheduler");
+        }
+    }
+}
+
+async fn schedule_due(state: &AppState) -> anyhow::Result<()> {
+    let due: Vec<Workspace> = sqlx::query_as(
+        "SELECT * FROM workspaces w WHERE w.drift_interval_minutes > 0
+           AND (w.drift_checked_at IS NULL
+                OR (julianday('now') - julianday(w.drift_checked_at)) * 1440 >= w.drift_interval_minutes)
+           AND NOT EXISTS (SELECT 1 FROM runs r WHERE r.workspace_id = w.id
+                           AND r.status IN ('pending', 'planning', 'planned', 'applying', 'running'))",
+    )
+    .fetch_all(&state.db)
+    .await?;
+    for ws in due {
+        tracing::info!(workspace = %ws.name, "starting scheduled drift check");
+        create_run(state, &ws, RunKind::Drift, "Scheduled drift check".into(), "schedule").await?;
+    }
+    Ok(())
 }
 
 pub async fn confirm(state: &AppState, run_id: &str, comment: Option<String>) -> anyhow::Result<()> {
@@ -342,6 +392,10 @@ async fn prepare(state: &AppState, run: &Run, sink: &mut EventSink) -> anyhow::R
     }
     let env = exec::build_env(state, &ws).await?;
     sink.redactor = env.redactor;
+    // Variable origin trace: keys and sources only, never values.
+    let rundir = run_dir(state, &run.id);
+    tokio::fs::create_dir_all(&rundir).await?;
+    tokio::fs::write(rundir.join("variables.json"), serde_json::to_vec(&env.origins)?).await?;
     sink.info(format!("Using {} in {}", bin.display(), dir.display())).await;
     Ok(Ctx { bin, dir, rundir: run_dir(state, &run.id), env: env.vars })
 }
@@ -376,7 +430,7 @@ async fn execute_plan(state: &AppState, run_id: &str) -> anyhow::Result<()> {
     let mut args = vec!["plan", "-input=false", "-json", "-detailed-exitcode", out_arg.as_str()];
     match kind {
         RunKind::Destroy => args.push("-destroy"),
-        RunKind::Refresh => args.push("-refresh-only"),
+        RunKind::Refresh | RunKind::Drift => args.push("-refresh-only"),
         _ => {}
     }
     let code = run_tool(state, run_id, &ctx, &args, true, &mut sink).await?;
@@ -397,21 +451,85 @@ async fn execute_plan(state: &AppState, run_id: &str) -> anyhow::Result<()> {
         .envs(&ctx.env)
         .output()
         .await?;
+    let mut drift_count = 0i64;
     if show.status.success() {
         state.crypto.write_encrypted(&ctx.rundir.join("plan.json.enc"), &show.stdout, &format!("{run_id}/plan"))?;
+        if let Ok(v) = serde_json::from_slice::<serde_json::Value>(&show.stdout) {
+            drift_count = v["resource_drift"].as_array().map(|a| a.len() as i64).unwrap_or(0);
+        }
     } else {
         sink.emit("warn", "Could not export the plan as JSON", None, None).await;
     }
 
-    sqlx::query("UPDATE runs SET has_changes = ?, plan_finished_at = ? WHERE id = ?")
+    sqlx::query("UPDATE runs SET has_changes = ?, drift_count = ?, plan_finished_at = ? WHERE id = ?")
         .bind(has_changes)
+        .bind(drift_count)
         .bind(now())
         .bind(run_id)
         .execute(&state.db)
         .await?;
 
+    if kind == RunKind::Drift {
+        // A refresh-only plan has changes exactly when real infrastructure
+        // differs from the state.
+        let count = if has_changes { drift_count.max(1) } else { 0 };
+        record_drift(state, &run.workspace_id, run_id, if has_changes { "drifted" } else { "ok" }, count).await?;
+        if has_changes {
+            sink.emit("warn", format!("Drift detected: {count} resource(s) changed outside Terraform"), Some("drift"), None).await;
+        } else {
+            sink.info("No drift: infrastructure matches the state").await;
+        }
+    }
+
+    // Policy checks run on every plan except drift checks.
+    let mut blocked = false;
+    if kind != RunKind::Drift && show.status.success() {
+        sink.stage("policy");
+        match crate::policy::check(state, &run.workspace_id, &show.stdout).await? {
+            None => {}
+            Some(report) => {
+                for set in &report.sets {
+                    let summary = match set.status.as_str() {
+                        "passed" => format!("Policy set {}: passed ({} policies)", set.set_name, set.policy_count),
+                        "errored" => format!("Policy set {}: error: {}", set.set_name, set.error.clone().unwrap_or_default()),
+                        _ => format!(
+                            "Policy set {} ({}): {} failure(s), {} warning(s)",
+                            set.set_name,
+                            set.enforcement,
+                            set.findings.iter().filter(|f| f.level == "fail").count(),
+                            set.findings.iter().filter(|f| f.level == "warn").count()
+                        ),
+                    };
+                    let level = match set.status.as_str() {
+                        "passed" => "info",
+                        "warned" => "warn",
+                        _ if set.enforcement == "mandatory" => "error",
+                        _ => "warn",
+                    };
+                    sink.emit(level, summary, Some("policy_set"), None).await;
+                    for f in &set.findings {
+                        let lvl = if f.level == "fail" && set.enforcement == "mandatory" { "error" } else { "warn" };
+                        sink.emit(lvl, format!("  [{}] {}", f.package, f.message), Some("policy_finding"), None).await;
+                    }
+                }
+                let json = sink.redactor.redact(&serde_json::to_string(&report)?);
+                tokio::fs::write(ctx.rundir.join("policy.json"), json).await?;
+                sqlx::query("UPDATE runs SET policy_status = ? WHERE id = ?").bind(&report.status).bind(run_id).execute(&state.db).await?;
+                blocked = report.blocks_apply();
+            }
+        }
+    }
+
     let ws = get_workspace(state, &run.workspace_id).await?;
-    if !has_changes || kind == RunKind::PlanOnly {
+    let would_apply = has_changes && matches!(kind, RunKind::PlanAndApply | RunKind::Destroy | RunKind::Refresh);
+    if blocked && would_apply {
+        let _ = tokio::fs::remove_file(&plan_file).await;
+        sink.error("A mandatory policy failed. This plan cannot be applied.").await;
+        set_status(state, run_id, status::POLICY_FAILED).await?;
+        sink.status(status::POLICY_FAILED).await;
+        return Ok(());
+    }
+    if !would_apply {
         // The binary plan file holds secrets; keep it only while it can be applied.
         let _ = tokio::fs::remove_file(&plan_file).await;
         set_status(state, run_id, status::PLANNED_AND_FINISHED).await?;
@@ -451,6 +569,11 @@ async fn execute_apply(state: &AppState, run_id: &str) -> anyhow::Result<()> {
     }
     set_status(state, run_id, status::APPLIED).await?;
     sink.status(status::APPLIED).await;
+    // The apply refreshed the state, so earlier drift is resolved.
+    sqlx::query("UPDATE workspaces SET drift_status = 'ok', drift_count = 0 WHERE id = ? AND drift_status = 'drifted'")
+        .bind(&run.workspace_id)
+        .execute(&state.db)
+        .await?;
     Ok(())
 }
 

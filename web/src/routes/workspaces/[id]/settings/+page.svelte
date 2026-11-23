@@ -11,6 +11,7 @@
 	import Switch from '#lib/components/ui/Switch.svelte';
 	import Dialog from '#lib/components/ui/Dialog.svelte';
 	import RefreshCw from '@lucide/svelte/icons/refresh-cw';
+	import { driftIntervals } from '#lib/format';
 
 	const ctx = useWorkspace();
 	// svelte-ignore state_referenced_locally
@@ -22,7 +23,8 @@
 		git_ref: w.git_ref ?? '',
 		tool: w.tool as string,
 		tool_path: w.tool_path ?? '',
-		auto_apply: w.auto_apply
+		auto_apply: w.auto_apply,
+		drift_interval: String(w.drift_interval_minutes)
 	});
 	let saving = $state(false);
 	let syncing = $state(false);
@@ -41,6 +43,7 @@
 				tool: f.tool as 'terraform' | 'tofu',
 				tool_path: f.tool_path || null,
 				auto_apply: f.auto_apply,
+				drift_interval_minutes: Number(f.drift_interval),
 				...(ctx.ws?.source_kind === 'git' ? { git_ref: f.git_ref } : {})
 			});
 			await ctx.reload();
@@ -101,6 +104,9 @@
 				</div>
 				<Switch bind:checked={f.auto_apply} />
 			</label>
+			<Field label="Drift detection" for="drift" hint="Runs a refresh-only plan on a schedule. It never changes your infrastructure or state. A check is skipped while another run is active.">
+				<Select id="drift" bind:value={f.drift_interval} options={driftIntervals} />
+			</Field>
 		</div>
 		<footer class="flex justify-end border-t border-border bg-surface-2 px-5 py-3">
 			<Button variant="primary" type="submit" loading={saving}>Save changes</Button>

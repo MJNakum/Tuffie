@@ -7,6 +7,7 @@ mod error;
 mod exec;
 mod git;
 mod models;
+mod policy;
 mod runner;
 mod security;
 mod terminal;
@@ -76,6 +77,7 @@ async fn serve(args: ServeArgs) -> anyhow::Result<()> {
         canceled: Mutex::new(HashSet::new()),
     });
     runner::recover(&state).await?;
+    tokio::spawn(runner::drift_scheduler(state.clone()));
 
     let app = api::router(state.clone());
     let listener = tokio::net::TcpListener::bind(config.listen).await?;

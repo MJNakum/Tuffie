@@ -29,6 +29,13 @@ pub struct Workspace {
     pub lock_run_id: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    /// 0 = off.
+    pub drift_interval_minutes: i64,
+    /// `None` = never checked, `ok`, `drifted`, `error`.
+    pub drift_status: Option<String>,
+    pub drift_count: i64,
+    pub drift_checked_at: Option<DateTime<Utc>>,
+    pub drift_run_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -38,6 +45,8 @@ pub enum RunKind {
     PlanAndApply,
     Destroy,
     Refresh,
+    /// `plan -refresh-only` that never applies. Detects drift.
+    Drift,
     Cli,
 }
 
@@ -48,6 +57,7 @@ impl RunKind {
             RunKind::PlanAndApply => "plan_and_apply",
             RunKind::Destroy => "destroy",
             RunKind::Refresh => "refresh",
+            RunKind::Drift => "drift",
             RunKind::Cli => "cli",
         }
     }
@@ -57,6 +67,7 @@ impl RunKind {
             "plan_and_apply" => RunKind::PlanAndApply,
             "destroy" => RunKind::Destroy,
             "refresh" => RunKind::Refresh,
+            "drift" => RunKind::Drift,
             "cli" => RunKind::Cli,
             _ => return None,
         })
@@ -76,13 +87,15 @@ pub mod status {
     pub const DISCARDED: &str = "discarded";
     pub const CANCELED: &str = "canceled";
     pub const ERRORED: &str = "errored";
+    /// A mandatory policy failed, so the plan cannot be applied.
+    pub const POLICY_FAILED: &str = "policy_failed";
     /// Terminal (CLI) commands.
     pub const RUNNING: &str = "running";
     pub const SUCCEEDED: &str = "succeeded";
     pub const FAILED: &str = "failed";
 
     pub fn is_final(s: &str) -> bool {
-        matches!(s, PLANNED_AND_FINISHED | APPLIED | DISCARDED | CANCELED | ERRORED | SUCCEEDED | FAILED)
+        matches!(s, PLANNED_AND_FINISHED | APPLIED | DISCARDED | CANCELED | ERRORED | POLICY_FAILED | SUCCEEDED | FAILED)
     }
 }
 
@@ -100,6 +113,8 @@ pub struct Run {
     pub change_count: i64,
     pub destroy_count: i64,
     pub import_count: i64,
+    pub drift_count: i64,
+    pub policy_status: Option<String>,
     pub exit_code: Option<i64>,
     pub has_state_snapshot: bool,
     pub state_serial: Option<i64>,
@@ -113,7 +128,8 @@ pub struct Run {
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct VariableRow {
     pub id: String,
-    pub workspace_id: String,
+    pub workspace_id: Option<String>,
+    pub set_id: Option<String>,
     pub key: String,
     pub value_enc: String,
     pub category: String,
@@ -129,7 +145,8 @@ pub struct VariableRow {
 #[derive(Debug, Clone, Serialize)]
 pub struct Variable {
     pub id: String,
-    pub workspace_id: String,
+    pub workspace_id: Option<String>,
+    pub set_id: Option<String>,
     pub key: String,
     pub value: Option<String>,
     pub category: String,
@@ -156,4 +173,37 @@ pub struct RunEvent {
     pub r#type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub data: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, sqlx::FromRow)]
+pub struct VariableSet {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub global: bool,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, sqlx::FromRow)]
+pub struct PolicySet {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub enforcement: String,
+    pub global: bool,
+    pub source_kind: String,
+    pub source_path: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, sqlx::FromRow)]
+pub struct Policy {
+    pub id: String,
+    pub set_id: String,
+    pub name: String,
+    pub rego: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
