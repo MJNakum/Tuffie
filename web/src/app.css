@@ -1,0 +1,174 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/jetbrains-mono';
+
+/*
+ * Tuffie colour system: "Graphite and Signal Blue".
+ *
+ * Dark (default):
+ *  - Backgrounds are near-black with a slight cool tint, not pure #000.
+ *    Pure black next to bright text causes halation and eye strain in long sessions.
+ *  - Surfaces step up in small, even lightness increments, so depth comes from
+ *    tone, not from shadows or gradients.
+ *  - One accent: a clear signal blue. It is used only for actions, focus and
+ *    selection, so it always means "you can act here".
+ *  - Plan semantics follow Terraform: green = create, amber = update,
+ *    red = destroy, violet = replace.
+ * All text/background pairs meet WCAG AA (4.5:1) at body size.
+ */
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+:root,
+[data-theme='dark'] {
+	--bg: #08090c;
+	--surface: #0e1015;
+	--surface-2: #13161d;
+	--surface-3: #1a1e27;
+	--hover: #1c212b;
+	--border: #20252f;
+	--border-strong: #2c3240;
+	--fg: #e8ebf1;
+	--fg-muted: #9aa3b5;
+	--fg-subtle: #697285;
+	--primary: #3d7eff;
+	--primary-hover: #5a92ff;
+	--primary-press: #2f6ae6;
+	--primary-fg: #ffffff;
+	--primary-soft: rgb(61 126 255 / 0.13);
+	--primary-text: #8fb4ff;
+	--success: #2fbf71;
+	--success-soft: rgb(47 191 113 / 0.13);
+	--warning: #e5a50a;
+	--warning-soft: rgb(229 165 10 / 0.13);
+	--danger: #f0524f;
+	--danger-soft: rgb(240 82 79 / 0.13);
+	--violet: #a585ff;
+	--violet-soft: rgb(165 133 255 / 0.13);
+	--shadow: 0 8px 30px rgb(0 0 0 / 0.45), 0 0 0 1px var(--border);
+	--term-bg: #07080b;
+	color-scheme: dark;
+}
+
+[data-theme='light'] {
+	--bg: #f6f7f9;
+	--surface: #ffffff;
+	--surface-2: #f2f4f7;
+	--surface-3: #e9ecf1;
+	--hover: #eef1f5;
+	--border: #e1e5ec;
+	--border-strong: #cdd3dd;
+	--fg: #0d1117;
+	--fg-muted: #535c6d;
+	--fg-subtle: #7a8394;
+	--primary: #1f5fff;
+	--primary-hover: #3a73ff;
+	--primary-press: #174fdb;
+	--primary-fg: #ffffff;
+	--primary-soft: rgb(31 95 255 / 0.09);
+	--primary-text: #1a4fd6;
+	--success: #138a4b;
+	--success-soft: rgb(19 138 75 / 0.1);
+	--warning: #a76f00;
+	--warning-soft: rgb(167 111 0 / 0.1);
+	--danger: #d22d2a;
+	--danger-soft: rgb(210 45 42 / 0.09);
+	--violet: #6d48e0;
+	--violet-soft: rgb(109 72 224 / 0.09);
+	--shadow: 0 8px 30px rgb(15 23 42 / 0.12), 0 0 0 1px var(--border);
+	--term-bg: #0b0d12;
+	color-scheme: light;
+}
+
+@theme inline {
+	--color-bg: var(--bg);
+	--color-surface: var(--surface);
+	--color-surface-2: var(--surface-2);
+	--color-surface-3: var(--surface-3);
+	--color-hover: var(--hover);
+	--color-border: var(--border);
+	--color-border-strong: var(--border-strong);
+	--color-fg: var(--fg);
+	--color-muted: var(--fg-muted);
+	--color-subtle: var(--fg-subtle);
+	--color-primary: var(--primary);
+	--color-primary-hover: var(--primary-hover);
+	--color-primary-press: var(--primary-press);
+	--color-primary-fg: var(--primary-fg);
+	--color-primary-soft: var(--primary-soft);
+	--color-primary-text: var(--primary-text);
+	--color-success: var(--success);
+	--color-success-soft: var(--success-soft);
+	--color-warning: var(--warning);
+	--color-warning-soft: var(--warning-soft);
+	--color-danger: var(--danger);
+	--color-danger-soft: var(--danger-soft);
+	--color-violet: var(--violet);
+	--color-violet-soft: var(--violet-soft);
+	--font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+	--font-mono: 'JetBrains Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
+	--shadow-pop: var(--shadow);
+}
+
+@layer base {
+	html,
+	body {
+		height: 100%;
+		background: var(--bg);
+		color: var(--fg);
+		font-family: var(--font-sans);
+		font-size: 13.5px;
+		line-height: 1.5;
+		-webkit-font-smoothing: antialiased;
+		font-feature-settings: 'cv11', 'ss01', 'ss03';
+	}
+	* {
+		border-color: var(--border);
+	}
+	::selection {
+		background: var(--primary-soft);
+	}
+	:focus-visible {
+		outline: 2px solid var(--primary);
+		outline-offset: 1px;
+		border-radius: 4px;
+	}
+	code,
+	kbd,
+	pre,
+	.mono {
+		font-family: var(--font-mono);
+		font-size: 0.92em;
+		font-variant-ligatures: none;
+	}
+	::-webkit-scrollbar {
+		width: 10px;
+		height: 10px;
+	}
+	::-webkit-scrollbar-thumb {
+		background: var(--border-strong);
+		border-radius: 10px;
+		border: 3px solid transparent;
+		background-clip: padding-box;
+	}
+	::-webkit-scrollbar-track {
+		background: transparent;
+	}
+}
+
+@utility tabular {
+	font-variant-numeric: tabular-nums;
+}
+
+@keyframes pulse-dot {
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.35;
+	}
+}
+.pulse-dot {
+	animation: pulse-dot 1.4s ease-in-out infinite;
+}

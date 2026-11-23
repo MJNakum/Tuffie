@@ -16,6 +16,12 @@ const MAX_FILE: u64 = 2 * 1024 * 1024;
 const SKIP_DIRS: &[&str] = &[".terraform", ".git", "node_modules", ".terragrunt-cache"];
 const MAX_ENTRIES: usize = 5000;
 
+/// State files hold secrets in plain text. The State tab shows them with
+/// sensitive values masked, so the file editor never opens them.
+fn is_state_file(name: &str) -> bool {
+    name.ends_with(".tfstate") || name.ends_with(".tfstate.backup") || name.contains(".tfstate.")
+}
+
 #[derive(Serialize)]
 pub struct Entry {
     path: String,
@@ -42,7 +48,7 @@ fn walk(root: &FsPath, dir: &FsPath, count: &mut usize) -> Vec<Entry> {
         }
         let name = e.file_name().to_string_lossy().to_string();
         let Ok(ft) = e.file_type() else { continue };
-        if ft.is_symlink() {
+        if ft.is_symlink() || is_state_file(&name) {
             continue;
         }
         let path = e.path();
@@ -86,6 +92,9 @@ async fn resolve(root: &FsPath, rel: &str, must_exist: bool) -> ApiResult<PathBu
     }
     if rel.components().any(|c| SKIP_DIRS.contains(&c.as_os_str().to_string_lossy().as_ref())) {
         return Err(ApiError::Forbidden("this folder cannot be edited".into()));
+    }
+    if rel.file_name().is_some_and(|n| is_state_file(&n.to_string_lossy())) {
+        return Err(ApiError::Forbidden("state files cannot be opened here; use the State tab".into()));
     }
     let full = root.join(&rel);
     // Canonicalize the existing part to defeat symlinks that point outside.

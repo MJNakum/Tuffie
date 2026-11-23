@@ -22,7 +22,8 @@ pub async fn list(State(state): State<AppState>) -> ApiResult<Json<Vec<Workspace
     let mut out = Vec::with_capacity(all.len());
     for ws in all {
         let latest_run: Option<Run> =
-            sqlx::query_as("SELECT * FROM runs WHERE workspace_id = ? ORDER BY created_at DESC LIMIT 1")
+            // Terminal commands such as `state list` do not count as the latest run.
+            sqlx::query_as("SELECT * FROM runs WHERE workspace_id = ? AND kind != 'cli' ORDER BY created_at DESC LIMIT 1")
                 .bind(&ws.id)
                 .fetch_optional(&state.db)
                 .await?;

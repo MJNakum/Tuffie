@@ -100,10 +100,8 @@ pub async fn current(State(state): State<AppState>, Path(id): Path<String>) -> A
     let show: Value = serde_json::from_slice(&out.stdout).unwrap_or(Value::Null);
     let mut s = summarize(&show);
     s["initialized"] = json!(true);
-    let n = s["resources"].as_array().map(|a| a.len()).unwrap_or(0);
-    let cache = state.config.data_dir.join("cache");
-    let _ = tokio::fs::create_dir_all(&cache).await;
-    let _ = tokio::fs::write(cache.join(format!("{id}.count")), n.to_string()).await;
+    let n = s["resources"].as_array().map(|a| a.iter().filter(|r| r["mode"] == "managed").count()).unwrap_or(0);
+    super::write_resource_count(&state, &id, n).await;
     Ok(Json(s))
 }
 

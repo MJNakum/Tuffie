@@ -468,6 +468,18 @@ async fn snapshot_state(state: &AppState, run_id: &str, ctx: &Ctx, sink: &mut Ev
             let serial = serde_json::from_slice::<serde_json::Value>(&o.stdout)
                 .ok()
                 .and_then(|v| v.get("serial").and_then(|s| s.as_i64()));
+            if let Ok(v) = serde_json::from_slice::<serde_json::Value>(&o.stdout) {
+                let n: usize = v["resources"]
+                    .as_array()
+                    .map(|rs| {
+                        rs.iter()
+                            .filter(|r| r["mode"] == "managed")
+                            .map(|r| r["instances"].as_array().map(|i| i.len()).unwrap_or(0))
+                            .sum()
+                    })
+                    .unwrap_or(0);
+                crate::api::write_resource_count(state, &run_ws(state, run_id).await, n).await;
+            }
             if state.crypto.write_encrypted(&ctx.rundir.join("state.json.enc"), &o.stdout, &format!("{run_id}/state")).is_ok() {
                 let _ = sqlx::query("UPDATE runs SET has_state_snapshot = 1, state_serial = ? WHERE id = ?")
                     .bind(serial)
@@ -478,6 +490,10 @@ async fn snapshot_state(state: &AppState, run_id: &str, ctx: &Ctx, sink: &mut Ev
         }
         _ => sink.emit("warn", "Could not save a state snapshot", None, None).await,
     }
+}
+
+async fn run_ws(state: &AppState, run_id: &str) -> String {
+    get_run(state, run_id).await.map(|r| r.workspace_id).unwrap_or_default()
 }
 
 fn cancelled(state: &AppState, run_id: &str) -> bool {

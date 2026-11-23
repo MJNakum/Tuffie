@@ -45,6 +45,13 @@ pub fn router(state: AppState) -> Router {
         .with_state(state)
 }
 
+/// Cache the number of managed resources for the workspace list.
+pub async fn write_resource_count(state: &crate::AppState, ws_id: &str, n: usize) {
+    let cache = state.config.data_dir.join("cache");
+    let _ = tokio::fs::create_dir_all(&cache).await;
+    let _ = tokio::fs::write(cache.join(format!("{ws_id}.count")), n.to_string()).await;
+}
+
 /// Replace values that Terraform marks as sensitive.
 ///
 /// `mask` has the same shape as `value`; `true` at a position means sensitive.
